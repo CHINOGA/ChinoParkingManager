@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from app import db
 
 class Vehicle(db.Model):
@@ -11,6 +11,17 @@ class Vehicle(db.Model):
 
     def __repr__(self):
         return f'<Vehicle {self.plate_number}>'
+
+    def get_east_african_time(self, utc_time):
+        """Convert UTC time to East African Time (UTC+3)"""
+        if utc_time:
+            return utc_time + timedelta(hours=3)
+        return None
+
+    def formatted_check_in_time(self):
+        """Return check-in time in EAT format"""
+        eat_time = self.get_east_african_time(self.check_in_time)
+        return eat_time.strftime('%H:%M') if eat_time else ''
 
     def to_dict(self):
         return {

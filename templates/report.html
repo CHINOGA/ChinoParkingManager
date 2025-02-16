@@ -49,7 +49,7 @@
                             <tr>
                                 <th>Vehicle Type</th>
                                 <th>Plate Number</th>
-                                <th>Check-in Time</th>
+                                <th>Check-in Time (EAT)</th>
                                 <th>Duration</th>
                             </tr>
                         </thead>
@@ -61,7 +61,7 @@
                                     {{ vehicle.vehicle_type }}
                                 </td>
                                 <td class="plate-number">{{ vehicle.plate_number }}</td>
-                                <td>{{ vehicle.check_in_time.strftime('%H:%M') }}</td>
+                                <td>{{ vehicle.formatted_check_in_time() }}</td>
                                 <td>
                                     <span class="badge bg-info">Active</span>
                                 </td>
