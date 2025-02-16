@@ -57,11 +57,11 @@
                             {% for vehicle in vehicles %}
                             <tr>
                                 <td class="text-capitalize">
-                                    <i class="fas fa-{% if vehicle.type == 'motorcycle' %}motorcycle{% elif vehicle.type == 'bajaj' %}taxi{% else %}car{% endif %} me-2"></i>
-                                    {{ vehicle.type }}
+                                    <i class="fas fa-{% if vehicle.vehicle_type == 'motorcycle' %}motorcycle{% elif vehicle.vehicle_type == 'bajaj' %}taxi{% else %}car{% endif %} me-2"></i>
+                                    {{ vehicle.vehicle_type }}
                                 </td>
                                 <td class="plate-number">{{ vehicle.plate_number }}</td>
-                                <td>{{ vehicle.check_in_time.split('T')[1][:5] }}</td>
+                                <td>{{ vehicle.check_in_time.strftime('%H:%M') }}</td>
                                 <td>
                                     <span class="badge bg-info">Active</span>
                                 </td>
