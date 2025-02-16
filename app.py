@@ -8,7 +8,7 @@ from sqlalchemy import func
 from datetime import datetime, timedelta
 
 # Set up logging
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class Base(DeclarativeBase):
@@ -19,7 +19,7 @@ app = Flask(__name__)
 app.secret_key = os.environ.get("SESSION_SECRET")
 
 # Configure database
-logger.debug("Configuring database connection...")
+logger.info("Configuring database connection...")
 app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL")
 app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
     "pool_recycle": 300,
@@ -31,16 +31,10 @@ db.init_app(app)
 from models import Vehicle, ParkingSpace  # noqa
 
 with app.app_context():
-    logger.debug("Dropping existing database tables...")
-    db.drop_all()  # Development only - removes existing tables
-
-    logger.debug("Creating database tables...")
-    db.create_all()
-
     # Initialize default spaces if none exist
-    logger.debug("Checking for default parking spaces...")
+    logger.info("Checking for default parking spaces...")
     if not ParkingSpace.query.first():
-        logger.debug("Initializing default parking spaces...")
+        logger.info("Initializing default parking spaces...")
         default_spaces = [
             ParkingSpace(vehicle_type='motorcycle', total_spaces=50, occupied_spaces=0),
             ParkingSpace(vehicle_type='bajaj', total_spaces=30, occupied_spaces=0),
@@ -48,7 +42,7 @@ with app.app_context():
         ]
         db.session.bulk_save_objects(default_spaces)
         db.session.commit()
-        logger.debug("Default spaces initialized successfully")
+        logger.info("Default spaces initialized successfully")
 
 @app.route('/')
 def index():
@@ -235,4 +229,4 @@ def analytics():
         return redirect(url_for('index'))
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    app.run(host='0.0.0.0', port=5000, debug=False)
