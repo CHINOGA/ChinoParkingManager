@@ -60,6 +60,7 @@
                                     <i class="fas fa-{% if vehicle.vehicle_type == 'motorcycle' %}motorcycle{% elif vehicle.vehicle_type == 'bajaj' %}taxi{% else %}car{% endif %} me-2"></i>
                                     <span class="text-capitalize">{{ vehicle.vehicle_type }}</span><br>
                                     <strong class="plate-number">{{ vehicle.plate_number }}</strong><br>
+                                    Model: {{ vehicle.vehicle_model }}<br>
                                     Color: {{ vehicle.vehicle_color }}
                                 </td>
                                 <td>
