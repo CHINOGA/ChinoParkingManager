@@ -20,7 +20,11 @@ app.secret_key = os.environ.get("SESSION_SECRET")
 
 # Configure database
 logger.debug("Configuring database connection...")
-app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL")
+database_url = os.environ.get("DATABASE_URL")
+if not database_url:
+    logger.error("DATABASE_URL environment variable is not set")
+    raise Exception("Database URL not configured")
+app.config["SQLALCHEMY_DATABASE_URI"] = database_url
 app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
     "pool_recycle": 300,
     "pool_pre_ping": True,
@@ -140,8 +144,14 @@ def report():
 @app.route('/analytics')
 def analytics():
     try:
+        # Ensure database connection
+        db.session.ping()
+        
         # Get current occupancy by vehicle type
         spaces = ParkingSpace.query.all()
+        if not spaces:
+            logger.error("No parking spaces found in database")
+            raise Exception("No parking spaces found")
         logger.debug(f"Found {len(spaces)} parking spaces")
 
         # Initialize with default values
