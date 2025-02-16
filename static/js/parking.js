@@ -12,7 +12,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (checkInForm) {
         checkInForm.addEventListener('submit', function(event) {
             const plateNumber = document.getElementById('plateNumber').value;
-            if (!plateNumber.match(/^[A-Z0-9]{3,10}$/)) {
+            if (!plateNumber.match(/^[A-Za-z0-9]{3,10}$/)) {
                 event.preventDefault();
                 alert('Please enter a valid plate number (3-10 alphanumeric characters)');
             }
@@ -22,7 +22,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (checkOutForm) {
         checkOutForm.addEventListener('submit', function(event) {
             const plateNumber = document.getElementById('checkOutPlateNumber').value;
-            if (!plateNumber.match(/^[A-Z0-9]{3,10}$/)) {
+            if (!plateNumber.match(/^[A-Za-z0-9]{3,10}$/)) {
                 event.preventDefault();
                 alert('Please enter a valid plate number (3-10 alphanumeric characters)');
             }
