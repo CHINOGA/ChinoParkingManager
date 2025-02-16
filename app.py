@@ -36,41 +36,45 @@ def load_user(user_id):
 
 def initialize_database():
     """Initialize database with default data"""
-    try:
-        # Create all tables
-        db.create_all()
+    with app.app_context():
+        try:
+            # Create all tables
+            db.create_all()
 
-        # Initialize default spaces if none exist
-        if not ParkingSpace.query.first():
-            logger.info("Initializing default parking spaces...")
-            default_spaces = [
-                ParkingSpace(vehicle_type='motorcycle', total_spaces=50, occupied_spaces=0),
-                ParkingSpace(vehicle_type='bajaj', total_spaces=30, occupied_spaces=0),
-                ParkingSpace(vehicle_type='car', total_spaces=20, occupied_spaces=0)
-            ]
-            db.session.bulk_save_objects(default_spaces)
+            # Initialize default spaces if none exist
+            if not ParkingSpace.query.first():
+                logger.info("Initializing default parking spaces...")
+                default_spaces = [
+                    ParkingSpace(vehicle_type='motorcycle', total_spaces=50, occupied_spaces=0),
+                    ParkingSpace(vehicle_type='bajaj', total_spaces=30, occupied_spaces=0),
+                    ParkingSpace(vehicle_type='car', total_spaces=20, occupied_spaces=0)
+                ]
+                for space in default_spaces:
+                    db.session.add(space)
+                db.session.commit()
 
             # Create default admin account if none exists
-            if not User.query.filter_by(is_admin=True).first():
+            admin = User.query.filter_by(username='admin').first()
+            if not admin:
                 logger.info("Creating default admin account...")
-                default_admin = User(
+                admin = User(
                     username='admin',
                     email='admin@chinopark.com',
                     is_admin=True,
-                    is_approved=True # Admin is approved by default
+                    is_approved=True
                 )
-                default_admin.set_password('admin123')
-                db.session.add(default_admin)
+                admin.set_password('admin123')
+                db.session.add(admin)
+                db.session.commit()
+                logger.info("Default admin account created successfully")
 
-            db.session.commit()
-            logger.info("Database initialization completed successfully")
-    except Exception as e:
-        logger.error(f"Error during database initialization: {str(e)}")
-        db.session.rollback()
-        raise
+        except Exception as e:
+            logger.error(f"Error during database initialization: {str(e)}")
+            db.session.rollback()
+            raise
 
-with app.app_context():
-    initialize_database()
+# Initialize database
+initialize_database()
 
 # Authentication routes
 @app.route('/login', methods=['GET', 'POST'])
