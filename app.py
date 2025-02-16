@@ -4,11 +4,14 @@ from datetime import datetime
 from flask import Flask, render_template, request, flash, redirect, url_for
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.orm import DeclarativeBase
-from sqlalchemy import func
+from sqlalchemy import func, create_engine
 from datetime import datetime, timedelta
 
-# Set up logging
-logging.basicConfig(level=logging.DEBUG)
+# Set up logging with more details
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 logger = logging.getLogger(__name__)
 
 class Base(DeclarativeBase):
@@ -24,29 +27,63 @@ database_url = os.environ.get("DATABASE_URL")
 if not database_url:
     logger.error("DATABASE_URL environment variable is not set")
     raise Exception("Database URL not configured")
+
+try:
+    # Test database connection before configuring app
+    engine = create_engine(database_url)
+    with engine.connect() as conn:
+        logger.debug("Successfully connected to database")
+except Exception as e:
+    logger.error(f"Failed to connect to database: {str(e)}")
+    raise
+
 app.config["SQLALCHEMY_DATABASE_URI"] = database_url
 app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
     "pool_recycle": 300,
     "pool_pre_ping": True,
 }
+
+# Initialize Flask-SQLAlchemy
+logger.debug("Initializing Flask-SQLAlchemy...")
 db.init_app(app)
 
 # Import models after db initialization
 from models import Vehicle, ParkingSpace  # noqa
 
 with app.app_context():
-    logger.debug("Creating database tables...")
-    db.create_all()
+    try:
+        logger.debug("Creating database tables...")
+        db.create_all()
 
-    # Initialize default spaces if none exist
-    logger.debug("Checking for default parking spaces...")
-    ParkingSpace.initialize_default_spaces()
+        # Initialize default spaces if none exist
+        logger.debug("Checking for default parking spaces...")
+        spaces = ParkingSpace.query.all()
+        logger.debug(f"Found {len(spaces)} existing parking spaces")
+
+        if not spaces:
+            logger.debug("Initializing default parking spaces...")
+            default_spaces = [
+                ParkingSpace(vehicle_type='motorcycle', total_spaces=50),
+                ParkingSpace(vehicle_type='bajaj', total_spaces=30),
+                ParkingSpace(vehicle_type='car', total_spaces=20)
+            ]
+            db.session.bulk_save_objects(default_spaces)
+            db.session.commit()
+            logger.debug("Default parking spaces initialized successfully")
+    except Exception as e:
+        logger.error(f"Error during database initialization: {str(e)}", exc_info=True)
+        raise
 
 @app.route('/')
 def index():
-    spaces = {space.vehicle_type: {"total": space.total_spaces, "occupied": space.occupied_spaces}
-             for space in ParkingSpace.query.all()}
-    return render_template('index.html', spaces=spaces)
+    try:
+        spaces = {space.vehicle_type: {"total": space.total_spaces, "occupied": space.occupied_spaces}
+                  for space in ParkingSpace.query.all()}
+        return render_template('index.html', spaces=spaces)
+    except Exception as e:
+        logger.error(f"Error in index route: {str(e)}", exc_info=True)
+        flash('Error loading parking data', 'error')
+        return render_template('index.html', spaces={})
 
 @app.route('/check-in', methods=['POST'])
 def check_in():
@@ -99,7 +136,7 @@ def check_in():
         logger.debug(f"Vehicle {plate_number} checked in successfully")
         flash('Vehicle checked in successfully!', 'success')
     except Exception as e:
-        logger.error(f"Error during check-in: {str(e)}")
+        logger.error(f"Error during check-in: {str(e)}", exc_info=True)
         flash('An error occurred during check-in!', 'error')
         db.session.rollback()
 
@@ -128,7 +165,7 @@ def check_out():
         logger.debug(f"Vehicle {plate_number} checked out successfully")
         flash('Vehicle checked out successfully!', 'success')
     except Exception as e:
-        logger.error(f"Error during check-out: {str(e)}")
+        logger.error(f"Error during check-out: {str(e)}", exc_info=True)
         flash('An error occurred during check-out!', 'error')
         db.session.rollback()
 
@@ -144,24 +181,12 @@ def report():
 @app.route('/analytics')
 def analytics():
     try:
-        # Ensure database connection
-        db.session.ping()
-        
         # Get current occupancy by vehicle type
         spaces = ParkingSpace.query.all()
-        if not spaces:
-            logger.error("No parking spaces found in database")
-            raise Exception("No parking spaces found")
         logger.debug(f"Found {len(spaces)} parking spaces")
 
         # Initialize with default values
-        current_occupancy = {
-            'motorcycle': {'total': 50, 'occupied': 0, 'percentage': 0},
-            'bajaj': {'total': 30, 'occupied': 0, 'percentage': 0},
-            'car': {'total': 20, 'occupied': 0, 'percentage': 0}
-        }
-
-        # Update with actual values
+        current_occupancy = {}
         for space in spaces:
             current_occupancy[space.vehicle_type] = {
                 'total': space.total_spaces,
@@ -171,19 +196,16 @@ def analytics():
         logger.debug(f"Current occupancy data: {current_occupancy}")
 
         # Get vehicle type distribution for active vehicles
-        vehicle_distribution = {'motorcycle': 0, 'bajaj': 0, 'car': 0}
-
-        # Query active vehicles using simpler SQL
         active_vehicles = db.session.query(
             Vehicle.vehicle_type,
-            db.func.count(Vehicle.id)
+            func.count(Vehicle.id)
         ).filter(
             Vehicle.status == 'active'
         ).group_by(Vehicle.vehicle_type).all()
 
-        logger.debug(f"Active vehicles query result: {active_vehicles}")
-
-        # Update distribution with actual values
+        vehicle_distribution = {}
+        for vehicle_type in current_occupancy.keys():
+            vehicle_distribution[vehicle_type] = 0
         for v_type, count in active_vehicles:
             if v_type in vehicle_distribution:
                 vehicle_distribution[v_type] = count
@@ -192,37 +214,26 @@ def analytics():
 
         # Get hourly check-ins for the past 24 hours
         yesterday = datetime.utcnow() - timedelta(days=1)
-
-        # Query hourly check-ins without complex aggregation
-        recent_checkins = db.session.query(
-            Vehicle.check_in_time
-        ).filter(
+        recent_checkins = Vehicle.query.filter(
             Vehicle.check_in_time >= yesterday
-        ).order_by(
-            Vehicle.check_in_time
-        ).all()
-
-        logger.debug(f"Recent checkins query result: {len(recent_checkins) if recent_checkins else 0} entries")
+        ).order_by(Vehicle.check_in_time).all()
 
         # Process hourly data
         hourly_data = {}
+        for vehicle in recent_checkins:
+            if vehicle.check_in_time:
+                # Convert UTC to EAT (UTC+3)
+                eat_time = vehicle.check_in_time + timedelta(hours=3)
+                hour_key = eat_time.strftime('%H:00')
+                hourly_data[hour_key] = hourly_data.get(hour_key, 0) + 1
 
-        if recent_checkins:
-            for (check_in_time,) in recent_checkins:
-                if check_in_time:
-                    # Convert UTC to EAT (UTC+3)
-                    eat_time = check_in_time + timedelta(hours=3)
-                    hour_key = eat_time.strftime('%H:00')
-                    hourly_data[hour_key] = hourly_data.get(hour_key, 0) + 1
-        else:
-            # Initialize with current hour if no data
+        if not hourly_data:
             current_hour = datetime.utcnow()
             eat_hour = (current_hour + timedelta(hours=3)).strftime('%H:00')
             hourly_data = {eat_hour: 0}
 
         # Sort hourly data by hour
         hourly_data = dict(sorted(hourly_data.items()))
-
         logger.debug(f"Processed hourly data: {hourly_data}")
 
         return render_template(
@@ -233,9 +244,8 @@ def analytics():
         )
     except Exception as e:
         logger.error(f"Error in analytics route: {str(e)}", exc_info=True)
-        db.session.rollback()
         flash('Error loading analytics data', 'error')
         return redirect(url_for('index'))
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5001, debug=True)
+    logger.warning("This file should not be run directly. Please use main.py instead.")
