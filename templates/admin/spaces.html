@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <h1 class="text-center mb-4">Manage Parking Spaces</h1>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title mb-0">Parking Space Configuration</h3>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Vehicle Type</th>
+                                <th>Current Total Spaces</th>
+                                <th>Occupied Spaces</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for space in spaces %}
+                            <tr>
+                                <td class="text-capitalize">{{ space.vehicle_type }}</td>
+                                <td>{{ space.total_spaces }}</td>
+                                <td>{{ space.occupied_spaces }}</td>
+                                <td>
+                                    <form action="{{ url_for('update_spaces') }}" method="POST" class="d-flex align-items-center gap-2">
+                                        <input type="hidden" name="space_id" value="{{ space.id }}">
+                                        <input type="number" name="total_spaces" class="form-control" 
+                                               min="{{ space.occupied_spaces }}" value="{{ space.total_spaces }}" 
+                                               style="width: 100px">
+                                        <button type="submit" class="btn btn-primary">Update</button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="alert alert-info">
+            <h4 class="alert-heading">Note:</h4>
+            <p class="mb-0">The total number of spaces cannot be less than the currently occupied spaces.</p>
+        </div>
+    </div>
+</div>
+{% endblock %}

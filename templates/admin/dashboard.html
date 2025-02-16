@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <h1 class="text-center mb-4">Admin Dashboard</h1>
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
+    <!-- Summary Cards -->
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body text-center">
+                <h5 class="card-title">Total Vehicles</h5>
+                <p class="display-4">{{ total_vehicles }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body text-center">
+                <h5 class="card-title">Currently Parked</h5>
+                <p class="display-4">{{ active_vehicles }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body text-center">
+                <h5 class="card-title">Today's Check-ins</h5>
+                <p class="display-4">{{ today_check_ins }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body text-center">
+                <h5 class="card-title">Today's Check-outs</h5>
+                <p class="display-4">{{ today_check_outs }}</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Parking Spaces Overview -->
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h3 class="card-title mb-0">Parking Spaces</h3>
+                <a href="{{ url_for('admin_spaces') }}" class="btn btn-primary">Manage Spaces</a>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Vehicle Type</th>
+                                <th>Total Spaces</th>
+                                <th>Occupied</th>
+                                <th>Available</th>
+                                <th>Occupancy Rate</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for space in spaces %}
+                            <tr>
+                                <td class="text-capitalize">{{ space.vehicle_type }}</td>
+                                <td>{{ space.total_spaces }}</td>
+                                <td>{{ space.occupied_spaces }}</td>
+                                <td>{{ space.total_spaces - space.occupied_spaces }}</td>
+                                <td>
+                                    <div class="progress">
+                                        <div class="progress-bar {% if space.occupied_spaces/space.total_spaces > 0.8 %}bg-danger{% elif space.occupied_spaces/space.total_spaces > 0.5 %}bg-warning{% else %}bg-success{% endif %}"
+                                             role="progressbar"
+                                             style="width: {{ (space.occupied_spaces/space.total_spaces * 100)|round }}%">
+                                            {{ (space.occupied_spaces/space.total_spaces * 100)|round }}%
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
