@@ -34,13 +34,17 @@ login_manager.login_message = 'Please log in to access the parking system.'
 def load_user(user_id):
     return User.query.get(int(user_id))
 
-def initialize_database():
-    """Initialize database with default data"""
+def create_tables():
+    """Create database tables"""
+    with app.app_context():
+        logger.info("Creating database tables...")
+        db.create_all()
+        logger.info("Database tables created successfully")
+
+def initialize_default_data():
+    """Initialize default data"""
     with app.app_context():
         try:
-            # Create all tables
-            db.create_all()
-
             # Initialize default spaces if none exist
             if not ParkingSpace.query.first():
                 logger.info("Initializing default parking spaces...")
@@ -52,6 +56,7 @@ def initialize_database():
                 for space in default_spaces:
                     db.session.add(space)
                 db.session.commit()
+                logger.info("Default parking spaces created successfully")
 
             # Create default admin account if none exists
             admin = User.query.filter_by(username='admin').first()
@@ -69,12 +74,13 @@ def initialize_database():
                 logger.info("Default admin account created successfully")
 
         except Exception as e:
-            logger.error(f"Error during database initialization: {str(e)}")
+            logger.error(f"Error during data initialization: {str(e)}")
             db.session.rollback()
             raise
 
-# Initialize database
-initialize_database()
+# Initialize database and default data
+create_tables()
+initialize_default_data()
 
 # Authentication routes
 @app.route('/login', methods=['GET', 'POST'])
