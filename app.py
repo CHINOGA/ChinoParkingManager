@@ -153,50 +153,75 @@ def report():
 def analytics():
     try:
         # Get current occupancy by vehicle type
-        current_occupancy = {
-            space.vehicle_type: {
+        spaces = ParkingSpace.query.all()
+        logger.debug(f"Found {len(spaces)} parking spaces")
+
+        current_occupancy = {}
+        for space in spaces:
+            current_occupancy[space.vehicle_type] = {
                 'total': space.total_spaces,
                 'occupied': space.occupied_spaces,
                 'percentage': (space.occupied_spaces / space.total_spaces * 100) if space.total_spaces > 0 else 0
             }
-            for space in ParkingSpace.query.all()
-        }
+        logger.debug(f"Current occupancy data: {current_occupancy}")
 
         # Get vehicle type distribution
         vehicle_counts = db.session.query(
             Vehicle.vehicle_type,
             func.count(Vehicle.id)
         ).group_by(Vehicle.vehicle_type).all()
+        logger.debug(f"Vehicle counts: {vehicle_counts}")
 
-        vehicle_distribution = {vtype: count for vtype, count in vehicle_counts}
+        vehicle_distribution = {}
+        for vtype, count in vehicle_counts:
+            vehicle_distribution[vtype] = count
+        logger.debug(f"Vehicle distribution: {vehicle_distribution}")
 
         # Calculate average parking duration for completed parkings
         completed_parkings = Vehicle.query.filter(
             Vehicle.status == 'completed',
             Vehicle.check_out_time.isnot(None)
         ).all()
+        logger.debug(f"Found {len(completed_parkings)} completed parkings")
 
         avg_duration = timedelta()
         if completed_parkings:
-            durations = [(v.check_out_time - v.check_in_time) for v in completed_parkings]
-            avg_duration = sum(durations, timedelta()) / len(durations)
+            total_duration = sum((v.check_out_time - v.check_in_time) for v in completed_parkings)
+            avg_duration = total_duration / len(completed_parkings)
+        logger.debug(f"Average duration: {avg_duration}")
 
         # Get hourly check-ins for the past 24 hours
         yesterday = datetime.utcnow() - timedelta(days=1)
         hourly_checkins = db.session.query(
-            func.date_trunc('hour', Vehicle.check_in_time),
-            func.count(Vehicle.id)
+            func.date_trunc('hour', Vehicle.check_in_time).label('hour'),
+            func.count(Vehicle.id).label('count')
         ).filter(
             Vehicle.check_in_time >= yesterday
         ).group_by(
-            func.date_trunc('hour', Vehicle.check_in_time)
-        ).all()
+            'hour'
+        ).order_by('hour').all()
+        logger.debug(f"Hourly checkins raw data: {hourly_checkins}")
 
         # Format for the template
-        hourly_data = {
-            timestamp.strftime('%Y-%m-%d %H:00'): count
-            for timestamp, count in hourly_checkins
-        }
+        hourly_data = {}
+        for hour, count in hourly_checkins:
+            if hour:  # Check if hour is not None
+                hourly_data[hour.strftime('%Y-%m-%d %H:00')] = count
+        logger.debug(f"Formatted hourly data: {hourly_data}")
+
+        if not current_occupancy:
+            current_occupancy = {
+                'motorcycle': {'total': 50, 'occupied': 0, 'percentage': 0},
+                'bajaj': {'total': 30, 'occupied': 0, 'percentage': 0},
+                'car': {'total': 20, 'occupied': 0, 'percentage': 0}
+            }
+
+        if not vehicle_distribution:
+            vehicle_distribution = {'motorcycle': 0, 'bajaj': 0, 'car': 0}
+
+        if not hourly_data:
+            current_hour = datetime.utcnow().replace(minute=0, second=0, microsecond=0)
+            hourly_data = {current_hour.strftime('%Y-%m-%d %H:00'): 0}
 
         return render_template(
             'analytics.html',
