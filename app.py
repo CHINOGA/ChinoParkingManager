@@ -31,24 +31,12 @@ db.init_app(app)
 from models import Vehicle, ParkingSpace  # noqa
 
 with app.app_context():
-    logger.debug("Dropping existing database tables...")
-    db.drop_all()  # Development only - removes existing tables
-
     logger.debug("Creating database tables...")
     db.create_all()
 
     # Initialize default spaces if none exist
     logger.debug("Checking for default parking spaces...")
-    if not ParkingSpace.query.first():
-        logger.debug("Initializing default parking spaces...")
-        default_spaces = [
-            ParkingSpace(vehicle_type='motorcycle', total_spaces=50, occupied_spaces=0),
-            ParkingSpace(vehicle_type='bajaj', total_spaces=30, occupied_spaces=0),
-            ParkingSpace(vehicle_type='car', total_spaces=20, occupied_spaces=0)
-        ]
-        db.session.bulk_save_objects(default_spaces)
-        db.session.commit()
-        logger.debug("Default spaces initialized successfully")
+    ParkingSpace.initialize_default_spaces()
 
 @app.route('/')
 def index():
@@ -172,16 +160,18 @@ def analytics():
             }
         logger.debug(f"Current occupancy data: {current_occupancy}")
 
-        # Get vehicle type distribution
+        # Get vehicle type distribution for active vehicles
         vehicle_distribution = {'motorcycle': 0, 'bajaj': 0, 'car': 0}
 
-        # Query active vehicles
+        # Query active vehicles using simpler SQL
         active_vehicles = db.session.query(
             Vehicle.vehicle_type,
-            func.count(Vehicle.id).label('count')
+            db.func.count(Vehicle.id)
         ).filter(
             Vehicle.status == 'active'
         ).group_by(Vehicle.vehicle_type).all()
+
+        logger.debug(f"Active vehicles query result: {active_vehicles}")
 
         # Update distribution with actual values
         for v_type, count in active_vehicles:
@@ -192,35 +182,38 @@ def analytics():
 
         # Get hourly check-ins for the past 24 hours
         yesterday = datetime.utcnow() - timedelta(days=1)
-        hourly_checkins = db.session.query(
-            func.date_trunc('hour', Vehicle.check_in_time).label('hour'),
-            func.count(Vehicle.id).label('count')
+
+        # Query hourly check-ins without complex aggregation
+        recent_checkins = db.session.query(
+            Vehicle.check_in_time
         ).filter(
             Vehicle.check_in_time >= yesterday
-        ).group_by(
-            func.date_trunc('hour', Vehicle.check_in_time)
         ).order_by(
-            func.date_trunc('hour', Vehicle.check_in_time)
+            Vehicle.check_in_time
         ).all()
 
-        logger.debug(f"Hourly checkins raw data: {hourly_checkins}")
+        logger.debug(f"Recent checkins query result: {len(recent_checkins) if recent_checkins else 0} entries")
 
-        # Initialize hourly data with empty dictionary
+        # Process hourly data
         hourly_data = {}
 
-        # If we have data, format it properly
-        if hourly_checkins:
-            for hour, count in hourly_checkins:
-                if hour:
+        if recent_checkins:
+            for (check_in_time,) in recent_checkins:
+                if check_in_time:
                     # Convert UTC to EAT (UTC+3)
-                    eat_hour = hour + timedelta(hours=3)
-                    hourly_data[eat_hour.strftime('%H:00')] = count
+                    eat_time = check_in_time + timedelta(hours=3)
+                    hour_key = eat_time.strftime('%H:00')
+                    hourly_data[hour_key] = hourly_data.get(hour_key, 0) + 1
         else:
-            # If no data, initialize with current hour
-            current_hour = datetime.utcnow().replace(minute=0, second=0, microsecond=0)
-            hourly_data = {current_hour.strftime('%H:00'): 0}
+            # Initialize with current hour if no data
+            current_hour = datetime.utcnow()
+            eat_hour = (current_hour + timedelta(hours=3)).strftime('%H:00')
+            hourly_data = {eat_hour: 0}
 
-        logger.debug(f"Formatted hourly data: {hourly_data}")
+        # Sort hourly data by hour
+        hourly_data = dict(sorted(hourly_data.items()))
+
+        logger.debug(f"Processed hourly data: {hourly_data}")
 
         return render_template(
             'analytics.html',
@@ -229,10 +222,10 @@ def analytics():
             hourly_data=hourly_data
         )
     except Exception as e:
-        logger.error(f"Error in analytics: {str(e)}")
+        logger.error(f"Error in analytics route: {str(e)}", exc_info=True)
         db.session.rollback()
         flash('Error loading analytics data', 'error')
         return redirect(url_for('index'))
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    app.run(host='0.0.0.0', port=5001, debug=True)
