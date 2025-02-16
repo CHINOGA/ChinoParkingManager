@@ -1,0 +1,33 @@
+/* Custom styles to complement Bootstrap */
+.space-indicator {
+    font-size: 2rem;
+    font-weight: bold;
+}
+
+.vehicle-icon {
+    font-size: 2.5rem;
+    margin-bottom: 1rem;
+}
+
+.parking-space {
+    transition: all 0.3s ease;
+    padding: 1.5rem;
+    border-radius: 8px;
+}
+
+.parking-space:hover {
+    transform: translateY(-5px);
+}
+
+.status-badge {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    padding: 0.5rem 1rem;
+}
+
+.plate-number {
+    font-family: monospace;
+    font-size: 1.2rem;
+    letter-spacing: 2px;
+}

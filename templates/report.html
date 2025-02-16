@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <h1 class="text-center mb-4">Parking Report</h1>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title mb-0">Current Occupancy</h3>
+            </div>
+            <div class="card-body">
+                <div class="row g-4">
+                    {% for vehicle_type, data in spaces.items() %}
+                    <div class="col-md-4">
+                        <div class="text-center">
+                            <h4 class="text-capitalize">{{ vehicle_type }}</h4>
+                            <div class="progress mb-2">
+                                <div class="progress-bar {% if data.occupied/data.total > 0.8 %}bg-danger{% elif data.occupied/data.total > 0.5 %}bg-warning{% else %}bg-success{% endif %}"
+                                     role="progressbar"
+                                     style="width: {{ (data.occupied/data.total * 100)|round }}%">
+                                    {{ data.occupied }} / {{ data.total }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title mb-0">Currently Parked Vehicles</h3>
+            </div>
+            <div class="card-body">
+                {% if vehicles %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Vehicle Type</th>
+                                <th>Plate Number</th>
+                                <th>Check-in Time</th>
+                                <th>Duration</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for vehicle in vehicles %}
+                            <tr>
+                                <td class="text-capitalize">
+                                    <i class="fas fa-{% if vehicle.type == 'motorcycle' %}motorcycle{% elif vehicle.type == 'bajaj' %}taxi{% else %}car{% endif %} me-2"></i>
+                                    {{ vehicle.type }}
+                                </td>
+                                <td class="plate-number">{{ vehicle.plate_number }}</td>
+                                <td>{{ vehicle.check_in_time.split('T')[1][:5] }}</td>
+                                <td>
+                                    <span class="badge bg-info">Active</span>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-4">
+                    <i class="fas fa-parking mb-3" style="font-size: 3rem;"></i>
+                    <p class="lead">No vehicles currently parked</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

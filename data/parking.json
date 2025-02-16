@@ -1,0 +1,17 @@
+{
+  "vehicles": [],
+  "spaces": {
+    "motorcycle": {
+      "total": 50,
+      "occupied": 0
+    },
+    "bajaj": {
+      "total": 30,
+      "occupied": 0
+    },
+    "car": {
+      "total": 20,
+      "occupied": 0
+    }
+  }
+}

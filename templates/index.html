@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <h1 class="text-center mb-4">Parking Space Management</h1>
+    </div>
+</div>
+
+<div class="row g-4 mb-5">
+    {% for vehicle_type, data in spaces.items() %}
+    <div class="col-md-4">
+        <div class="card parking-space h-100">
+            <div class="card-body text-center">
+                <i class="vehicle-icon fas fa-{% if vehicle_type == 'motorcycle' %}motorcycle{% elif vehicle_type == 'bajaj' %}taxi{% else %}car{% endif %}"></i>
+                <h3 class="card-title text-capitalize">{{ vehicle_type }}</h3>
+                <div class="space-indicator mb-3">
+                    {{ data.occupied }} / {{ data.total }}
+                </div>
+                <div class="progress mb-3">
+                    <div class="progress-bar {% if data.occupied/data.total > 0.8 %}bg-danger{% elif data.occupied/data.total > 0.5 %}bg-warning{% else %}bg-success{% endif %}"
+                         role="progressbar"
+                         style="width: {{ (data.occupied/data.total * 100)|round }}%">
+                    </div>
+                </div>
+                <p class="card-text">
+                    Available Spaces: {{ data.total - data.occupied }}
+                </p>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<div class="row">
+    <div class="col-md-6 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title mb-0">Check In Vehicle</h3>
+            </div>
+            <div class="card-body">
+                <form id="checkInForm" action="{{ url_for('check_in') }}" method="POST">
+                    <div class="mb-3">
+                        <label for="vehicle_type" class="form-label">Vehicle Type</label>
+                        <select class="form-select" id="vehicle_type" name="vehicle_type" required>
+                            <option value="motorcycle">Motorcycle</option>
+                            <option value="bajaj">Bajaj</option>
+                            <option value="car">Car</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="plateNumber" class="form-label">Plate Number</label>
+                        <input type="text" class="form-control plate-number" id="plateNumber" name="plate_number" 
+                               required pattern="[A-Z0-9]{3,10}" placeholder="ABC123">
+                    </div>
+                    <button type="submit" class="btn btn-primary">Check In</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title mb-0">Check Out Vehicle</h3>
+            </div>
+            <div class="card-body">
+                <form id="checkOutForm" action="{{ url_for('check_out') }}" method="POST">
+                    <div class="mb-3">
+                        <label for="checkOutPlateNumber" class="form-label">Plate Number</label>
+                        <input type="text" class="form-control plate-number" id="checkOutPlateNumber" name="plate_number" 
+                               required pattern="[A-Z0-9]{3,10}" placeholder="ABC123">
+                    </div>
+                    <button type="submit" class="btn btn-danger">Check Out</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
