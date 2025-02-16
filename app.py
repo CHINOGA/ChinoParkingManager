@@ -4,7 +4,8 @@ from datetime import datetime, timedelta
 from flask import Flask, render_template, request, flash, redirect, url_for
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from sqlalchemy import func, desc
-from models import db, Vehicle, ParkingSpace, Admin
+from models import db, Vehicle, ParkingSpace, User
+from werkzeug.security import generate_password_hash
 
 # Set up logging
 logging.basicConfig(level=logging.DEBUG)
@@ -26,12 +27,12 @@ app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
 db.init_app(app)
 login_manager = LoginManager()
 login_manager.init_app(app)
-login_manager.login_view = 'admin_login'
-login_manager.login_message = 'Please log in to access the admin panel.'
+login_manager.login_view = 'login'
+login_manager.login_message = 'Please log in to access the parking system.'
 
 @login_manager.user_loader
 def load_user(user_id):
-    return Admin.query.get(int(user_id))
+    return User.query.get(int(user_id))
 
 def initialize_database():
     """Initialize database with default data"""
@@ -50,11 +51,12 @@ def initialize_database():
             db.session.bulk_save_objects(default_spaces)
 
             # Create default admin account if none exists
-            if not Admin.query.first():
+            if not User.query.filter_by(is_admin=True).first():
                 logger.info("Creating default admin account...")
-                default_admin = Admin(
+                default_admin = User(
                     username='admin',
-                    email='admin@chinopark.com'
+                    email='admin@chinopark.com',
+                    is_admin=True
                 )
                 default_admin.set_password('admin123')
                 db.session.add(default_admin)
@@ -69,14 +71,150 @@ def initialize_database():
 with app.app_context():
     initialize_database()
 
-# Routes
+# Authentication routes
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if current_user.is_authenticated:
+        return redirect(url_for('index'))
+
+    if request.method == 'POST':
+        username = request.form.get('username')
+        password = request.form.get('password')
+
+        user = User.query.filter_by(username=username).first()
+
+        if user and user.check_password(password):
+            login_user(user)
+            user.last_login = datetime.utcnow()
+            db.session.commit()
+            flash('Logged in successfully.', 'success')
+
+            # Redirect admin users to admin dashboard
+            if user.is_admin:
+                return redirect(url_for('admin_dashboard'))
+            return redirect(url_for('index'))
+
+        flash('Invalid username or password.', 'error')
+
+    return render_template('auth/login.html')
+
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    if current_user.is_authenticated:
+        return redirect(url_for('index'))
+
+    if request.method == 'POST':
+        username = request.form.get('username')
+        email = request.form.get('email')
+        password = request.form.get('password')
+        confirm_password = request.form.get('confirm_password')
+
+        if password != confirm_password:
+            flash('Passwords do not match.', 'error')
+            return redirect(url_for('register'))
+
+        if User.query.filter_by(username=username).first():
+            flash('Username already exists.', 'error')
+            return redirect(url_for('register'))
+
+        if User.query.filter_by(email=email).first():
+            flash('Email already registered.', 'error')
+            return redirect(url_for('register'))
+
+        user = User(
+            username=username,
+            email=email,
+            is_admin=False  # Regular users are not admins by default
+        )
+        user.set_password(password)
+        db.session.add(user)
+        db.session.commit()
+
+        flash('Registration successful. Please login.', 'success')
+        return redirect(url_for('login'))
+
+    return render_template('auth/register.html')
+
+@app.route('/logout')
+@login_required
+def logout():
+    logout_user()
+    flash('Logged out successfully.', 'success')
+    return redirect(url_for('login'))
+
+# Admin routes
+@app.route('/admin')
+@login_required
+def admin_dashboard():
+    if not current_user.is_admin:
+        flash('Access denied. Admin privileges required.', 'error')
+        return redirect(url_for('index'))
+
+    total_vehicles = Vehicle.query.count()
+    active_vehicles = Vehicle.query.filter_by(status='active').count()
+    spaces = ParkingSpace.query.all()
+
+    # Get today's statistics
+    today = datetime.utcnow().date()
+    today_check_ins = Vehicle.query.filter(
+        Vehicle.check_in_time >= today
+    ).count()
+    today_check_outs = Vehicle.query.filter(
+        Vehicle.check_out_time >= today,
+        Vehicle.status == 'completed'
+    ).count()
+
+    return render_template('admin/dashboard.html',
+                       total_vehicles=total_vehicles,
+                       active_vehicles=active_vehicles,
+                       spaces=spaces,
+                       today_check_ins=today_check_ins,
+                       today_check_outs=today_check_outs)
+
+@app.route('/admin/spaces')
+@login_required
+def admin_spaces():
+    if not current_user.is_admin:
+        flash('Access denied. Admin privileges required.', 'error')
+        return redirect(url_for('index'))
+
+    spaces = ParkingSpace.query.all()
+    return render_template('admin/spaces.html', spaces=spaces)
+
+@app.route('/admin/spaces/update', methods=['POST'])
+@login_required
+def update_spaces():
+    if not current_user.is_admin:
+        flash('Access denied. Admin privileges required.', 'error')
+        return redirect(url_for('index'))
+
+    try:
+        space_id = request.form.get('space_id')
+        total_spaces = request.form.get('total_spaces')
+
+        space = ParkingSpace.query.get_or_404(space_id)
+        if int(total_spaces) < space.occupied_spaces:
+            flash('New total spaces cannot be less than currently occupied spaces.', 'error')
+        else:
+            space.total_spaces = int(total_spaces)
+            db.session.commit()
+            flash('Parking spaces updated successfully.', 'success')
+    except Exception as e:
+        flash('Error updating parking spaces.', 'error')
+        logger.error(f"Error updating parking spaces: {str(e)}")
+
+    return redirect(url_for('admin_spaces'))
+
+# Protected routes for regular users
 @app.route('/')
+@login_required
 def index():
     spaces = {space.vehicle_type: {"total": space.total_spaces, "occupied": space.occupied_spaces}
              for space in ParkingSpace.query.all()}
     return render_template('index.html', spaces=spaces)
 
 @app.route('/check-in', methods=['POST'])
+@login_required
 def check_in():
     try:
         vehicle_type = request.form.get('vehicle_type')
@@ -117,7 +255,8 @@ def check_in():
             driver_phone=driver_phone,
             driver_residence=driver_residence,
             check_in_time=datetime.utcnow(),
-            status='active'
+            status='active',
+            user_id=current_user.id
         )
 
         space.occupied_spaces += 1
@@ -132,12 +271,14 @@ def check_in():
     return redirect(url_for('index'))
 
 @app.route('/check-out', methods=['POST'])
+@login_required
 def check_out():
     try:
         plate_number = request.form.get('plate_number')
         vehicle = Vehicle.query.filter_by(
             plate_number=plate_number, 
-            status='active'
+            status='active',
+            user_id=current_user.id
         ).first()
 
         if not vehicle:
@@ -160,13 +301,15 @@ def check_out():
     return redirect(url_for('index'))
 
 @app.route('/report')
+@login_required
 def report():
-    active_vehicles = Vehicle.query.filter_by(status='active').all()
+    active_vehicles = Vehicle.query.filter_by(status='active', user_id=current_user.id).all()
     spaces = {space.vehicle_type: {"total": space.total_spaces, "occupied": space.occupied_spaces}
              for space in ParkingSpace.query.all()}
     return render_template('report.html', vehicles=active_vehicles, spaces=spaces)
 
 @app.route('/analytics')
+@login_required
 def analytics():
     try:
         # Get space utilization data
@@ -180,7 +323,8 @@ def analytics():
             Vehicle.vehicle_type,
             func.count(Vehicle.id).label('count')
         ).filter(
-            Vehicle.status == 'active'
+            Vehicle.status == 'active',
+            Vehicle.user_id == current_user.id
         ).group_by(Vehicle.vehicle_type).all()
 
         distribution_labels = []
@@ -195,7 +339,8 @@ def analytics():
 
         # Recent check-ins
         recent_check_ins = Vehicle.query.filter(
-            Vehicle.check_in_time >= today
+            Vehicle.check_in_time >= today,
+            Vehicle.user_id == current_user.id
         ).order_by(desc(Vehicle.check_in_time)).limit(10).all()
 
         for vehicle in recent_check_ins:
@@ -209,7 +354,8 @@ def analytics():
         # Recent check-outs
         recent_check_outs = Vehicle.query.filter(
             Vehicle.check_out_time >= today,
-            Vehicle.status == 'completed'
+            Vehicle.status == 'completed',
+            Vehicle.user_id == current_user.id
         ).order_by(desc(Vehicle.check_out_time)).limit(10).all()
 
         for vehicle in recent_check_outs:
@@ -227,10 +373,12 @@ def analytics():
         # Calculate daily statistics
         daily_stats = {
             'check_ins': Vehicle.query.filter(
-                Vehicle.check_in_time >= today
+                Vehicle.check_in_time >= today,
+                Vehicle.user_id == current_user.id
             ).count(),
             'check_outs': Vehicle.query.filter(
-                Vehicle.check_out_time >= today
+                Vehicle.check_out_time >= today,
+                Vehicle.user_id == current_user.id
             ).count(),
             'avg_stay_time': '-- hours',  # Placeholder
             'peak_hour': '-- : --'  # Placeholder
@@ -239,7 +387,8 @@ def analytics():
         # Calculate average stay time for completed parkings today
         completed_today = Vehicle.query.filter(
             Vehicle.status == 'completed',
-            Vehicle.check_out_time >= today
+            Vehicle.check_out_time >= today,
+            Vehicle.user_id == current_user.id
         ).all()
 
         if completed_today:
@@ -255,7 +404,8 @@ def analytics():
             func.date_trunc('hour', Vehicle.check_in_time).label('hour'),
             func.count(Vehicle.id).label('count')
         ).filter(
-            Vehicle.check_in_time >= today
+            Vehicle.check_in_time >= today,
+            Vehicle.user_id == current_user.id
         ).group_by(
             'hour'
         ).order_by(
@@ -281,85 +431,6 @@ def analytics():
         logger.error(f"Error in analytics: {str(e)}")
         flash('Error loading analytics data', 'error')
         return redirect(url_for('index'))
-
-# Admin routes
-@app.route('/admin/login', methods=['GET', 'POST'])
-def admin_login():
-    if current_user.is_authenticated:
-        return redirect(url_for('admin_dashboard'))
-
-    if request.method == 'POST':
-        username = request.form.get('username')
-        password = request.form.get('password')
-        admin = Admin.query.filter_by(username=username).first()
-
-        if admin and admin.check_password(password):
-            login_user(admin)
-            admin.last_login = datetime.utcnow()
-            db.session.commit()
-            flash('Logged in successfully.', 'success')
-            return redirect(url_for('admin_dashboard'))
-
-        flash('Invalid username or password.', 'error')
-
-    return render_template('admin/login.html')
-
-@app.route('/admin/logout')
-@login_required
-def admin_logout():
-    logout_user()
-    flash('Logged out successfully.', 'success')
-    return redirect(url_for('admin_login'))
-
-@app.route('/admin')
-@login_required
-def admin_dashboard():
-    total_vehicles = Vehicle.query.count()
-    active_vehicles = Vehicle.query.filter_by(status='active').count()
-    spaces = ParkingSpace.query.all()
-
-    # Get today's statistics
-    today = datetime.utcnow().date()
-    today_check_ins = Vehicle.query.filter(
-        Vehicle.check_in_time >= today
-    ).count()
-    today_check_outs = Vehicle.query.filter(
-        Vehicle.check_out_time >= today,
-        Vehicle.status == 'completed'
-    ).count()
-
-    return render_template('admin/dashboard.html',
-                         total_vehicles=total_vehicles,
-                         active_vehicles=active_vehicles,
-                         spaces=spaces,
-                         today_check_ins=today_check_ins,
-                         today_check_outs=today_check_outs)
-
-@app.route('/admin/spaces')
-@login_required
-def admin_spaces():
-    spaces = ParkingSpace.query.all()
-    return render_template('admin/spaces.html', spaces=spaces)
-
-@app.route('/admin/spaces/update', methods=['POST'])
-@login_required
-def update_spaces():
-    try:
-        space_id = request.form.get('space_id')
-        total_spaces = request.form.get('total_spaces')
-
-        space = ParkingSpace.query.get_or_404(space_id)
-        if int(total_spaces) < space.occupied_spaces:
-            flash('New total spaces cannot be less than currently occupied spaces.', 'error')
-        else:
-            space.total_spaces = int(total_spaces)
-            db.session.commit()
-            flash('Parking spaces updated successfully.', 'success')
-    except Exception as e:
-        flash('Error updating parking spaces.', 'error')
-        logger.error(f"Error updating parking spaces: {str(e)}")
-
-    return redirect(url_for('admin_spaces'))
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)

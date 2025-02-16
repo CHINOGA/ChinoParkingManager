@@ -5,7 +5,7 @@ channel = "stable-24_05"
 
 [deployment]
 deploymentTarget = "autoscale"
-run = ["sh", "-c", "gunicorn --workers=4 --bind=0.0.0.0:5000 --log-level=info main:app"]
+run = ["sh", "-c", "gunicorn --workers=4 --bind=0.0.0.0:5000 --log-level=debug main:app"]
 
 [workflows]
 runButton = "Project"
@@ -31,7 +31,7 @@ task = "packager.installForAll"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "gunicorn --workers=4 --bind=0.0.0.0:5000 --log-level=info main:app"
+args = "gunicorn --workers=4 --bind=0.0.0.0:5000 --log-level=debug main:app"
 waitForPort = 5000
 
 [[ports]]

@@ -6,6 +6,30 @@ from werkzeug.security import generate_password_hash, check_password_hash
 # Initialize SQLAlchemy without binding to app yet
 db = SQLAlchemy()
 
+class User(UserMixin, db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(64), unique=True, nullable=False)
+    email = db.Column(db.String(120), unique=True, nullable=False)
+    password_hash = db.Column(db.String(256), nullable=False)
+    is_admin = db.Column(db.Boolean, default=False)
+    is_active = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    last_login = db.Column(db.DateTime)
+
+    def set_password(self, password):
+        self.password_hash = generate_password_hash(password)
+
+    def check_password(self, password):
+        return check_password_hash(self.password_hash, password)
+
+    def has_role(self, role):
+        if role == 'admin':
+            return self.is_admin
+        return False
+
+    def __repr__(self):
+        return f'<User {self.username}>'
+
 class Vehicle(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     # Vehicle Information
@@ -25,6 +49,8 @@ class Vehicle(db.Model):
     check_in_time = db.Column(db.DateTime, default=datetime.utcnow)
     check_out_time = db.Column(db.DateTime, nullable=True)
     status = db.Column(db.String(20), default='active')  # active, completed
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    user = db.relationship('User', backref=db.backref('vehicles', lazy=True))
 
     def __repr__(self):
         return f'<Vehicle {self.plate_number}>'
@@ -54,21 +80,3 @@ class ParkingSpace(db.Model):
 
     def __repr__(self):
         return f'<ParkingSpace {self.vehicle_type}>'
-
-class Admin(UserMixin, db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(64), unique=True, nullable=False)
-    email = db.Column(db.String(120), unique=True, nullable=False)
-    password_hash = db.Column(db.String(256), nullable=False)
-    is_active = db.Column(db.Boolean, default=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    last_login = db.Column(db.DateTime)
-
-    def set_password(self, password):
-        self.password_hash = generate_password_hash(password)
-
-    def check_password(self, password):
-        return check_password_hash(self.password_hash, password)
-
-    def __repr__(self):
-        return f'<Admin {self.username}>'
