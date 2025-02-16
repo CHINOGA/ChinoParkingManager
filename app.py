@@ -29,9 +29,14 @@ db.init_app(app)
 from models import Vehicle, ParkingSpace  # noqa
 
 with app.app_context():
+    logger.debug("Dropping existing database tables...")
+    db.drop_all()  # Development only - removes existing tables
+
     logger.debug("Creating database tables...")
     db.create_all()
+
     # Initialize default spaces if none exist
+    logger.debug("Checking for default parking spaces...")
     if not ParkingSpace.query.first():
         logger.debug("Initializing default parking spaces...")
         default_spaces = [
@@ -55,7 +60,9 @@ def check_in():
         # Get all form data
         vehicle_type = request.form.get('vehicle_type')
         plate_number = request.form.get('plate_number')
+        vehicle_model = request.form.get('vehicle_model')
         vehicle_color = request.form.get('vehicle_color')
+        vehicle_year = request.form.get('vehicle_year')
         driver_name = request.form.get('driver_name')
         driver_id_type = request.form.get('driver_id_type')
         driver_id_number = request.form.get('driver_id_number')
@@ -82,7 +89,9 @@ def check_in():
         vehicle = Vehicle(
             plate_number=plate_number,
             vehicle_type=vehicle_type,
+            vehicle_model=vehicle_model,
             vehicle_color=vehicle_color,
+            vehicle_year=vehicle_year,
             driver_name=driver_name,
             driver_id_type=driver_id_type,
             driver_id_number=driver_id_number,
@@ -141,4 +150,4 @@ def report():
     return render_template('report.html', vehicles=active_vehicles, spaces=spaces)
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    app.run(host='0.0.0.0', port=5001, debug=True)

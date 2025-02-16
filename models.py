@@ -4,13 +4,15 @@ from app import db
 class Vehicle(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     # Vehicle Information
-    plate_number = db.Column(db.String(10), unique=True, nullable=False)
-    vehicle_type = db.Column(db.String(20), nullable=False)
+    plate_number = db.Column(db.String(10), nullable=False)
+    vehicle_type = db.Column(db.String(20), nullable=False)  # motorcycle, bajaj, car
+    vehicle_model = db.Column(db.String(100), nullable=False)
     vehicle_color = db.Column(db.String(50), nullable=False)
+    vehicle_year = db.Column(db.Integer, nullable=True)
 
     # Driver Information
     driver_name = db.Column(db.String(100), nullable=False)
-    driver_id_type = db.Column(db.String(50), nullable=False)  # National ID, Passport, etc.
+    driver_id_type = db.Column(db.String(50), nullable=False)  # National ID, Voter's ID, Passport, Driver's License
     driver_id_number = db.Column(db.String(50), nullable=False)
     driver_phone = db.Column(db.String(20), nullable=False)
     driver_residence = db.Column(db.String(200), nullable=False)
@@ -18,7 +20,7 @@ class Vehicle(db.Model):
     # Timing Information
     check_in_time = db.Column(db.DateTime, default=datetime.utcnow)
     check_out_time = db.Column(db.DateTime, nullable=True)
-    status = db.Column(db.String(20), default='active')
+    status = db.Column(db.String(20), default='active')  # active, completed
 
     def __repr__(self):
         return f'<Vehicle {self.plate_number}>'

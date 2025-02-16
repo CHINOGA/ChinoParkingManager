@@ -55,8 +55,16 @@
                                required pattern="[A-Z0-9]{3,10}" placeholder="ABC123">
                     </div>
                     <div class="mb-3">
+                        <label for="vehicle_model" class="form-label">Vehicle Model</label>
+                        <input type="text" class="form-control" id="vehicle_model" name="vehicle_model" required>
+                    </div>
+                    <div class="mb-3">
                         <label for="vehicle_color" class="form-label">Vehicle Color</label>
                         <input type="text" class="form-control" id="vehicle_color" name="vehicle_color" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="vehicle_year" class="form-label">Vehicle Year</label>
+                        <input type="number" class="form-control" id="vehicle_year" name="vehicle_year" min="1900" max="2025">
                     </div>
 
                     <h4 class="mb-3">Driver Information</h4>
