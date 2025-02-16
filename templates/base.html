@@ -3,62 +3,91 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Chino Park Parking Management</title>
+    <meta name="description" content="Chino Park - Professional parking management system in Dar es Salaam. Secure parking for cars, motorcycles, and bajaj at Golani Kijiweni, Kimara. 24/7 vehicle security.">
+    <meta name="keywords" content="parking management, Dar es Salaam parking, secure parking, Kimara parking, Golani Kijiweni, vehicle parking, car park, motorcycle parking, bajaj parking, parking system Tanzania">
+    <meta name="author" content="Chino Park">
+    <meta name="robots" content="index, follow">
+    <meta property="og:title" content="Chino Park Parking Management System">
+    <meta property="og:description" content="Professional parking management system in Dar es Salaam. Secure parking for cars, motorcycles, and bajaj.">
+    <meta property="og:type" content="website">
+    <meta property="og:locale" content="en_US">
+    <title>{% block title %}Chino Park Parking Management{% endblock %} | Secure Parking in Dar es Salaam</title>
     <link rel="stylesheet" href="https://cdn.replit.com/agent/bootstrap-agent-dark-theme.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "ParkingFacility",
+        "name": "Chino Park",
+        "description": "Professional parking management system offering secure parking for cars, motorcycles, and bajaj in Dar es Salaam",
+        "address": {
+            "@type": "PostalAddress",
+            "streetAddress": "Mringo Road, Golani Kijiweni",
+            "addressLocality": "Kimara",
+            "addressRegion": "Dar es Salaam",
+            "addressCountry": "TZ"
+        },
+        "telephone": "+255 754 402 368",
+        "email": "info@chinopark.com",
+        "openingHours": "Mo-Su 00:00-23:59",
+        "hasMap": "https://www.google.com/maps?q=Mringo+Road,+Golani+Kijiweni,+Kimara,+Dar+es+Salaam"
+    }
+    </script>
 </head>
 <body>
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-        <div class="container">
-            <a class="navbar-brand" href="{{ url_for('landing') }}">
-                <i class="fas fa-parking me-2"></i>
-                Chino Park Parking
-            </a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav ms-auto">
-                    {% if current_user.is_authenticated %}
-                        {% if current_user.has_role('admin') %}
-                        <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('admin_dashboard') }}">Admin Dashboard</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('manage_users') }}">Manage Users</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('admin_spaces') }}">Manage Spaces</a>
-                        </li>
+    <header>
+        <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+            <div class="container">
+                <a class="navbar-brand" href="{{ url_for('landing') }}">
+                    <i class="fas fa-parking me-2"></i>
+                    Chino Park Parking
+                </a>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                <div class="collapse navbar-collapse" id="navbarNav">
+                    <ul class="navbar-nav ms-auto">
+                        {% if current_user.is_authenticated %}
+                            {% if current_user.has_role('admin') %}
+                            <li class="nav-item">
+                                <a class="nav-link" href="{{ url_for('admin_dashboard') }}">Admin Dashboard</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="{{ url_for('manage_users') }}">Manage Users</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="{{ url_for('admin_spaces') }}">Manage Spaces</a>
+                            </li>
+                            {% else %}
+                            <li class="nav-item">
+                                <a class="nav-link" href="{{ url_for('dashboard') }}">Dashboard</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="{{ url_for('analytics') }}">Analytics</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="{{ url_for('report') }}">Report</a>
+                            </li>
+                            {% endif %}
+                            <li class="nav-item">
+                                <a class="nav-link" href="{{ url_for('logout') }}">Logout</a>
+                            </li>
                         {% else %}
-                        <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('dashboard') }}">Dashboard</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('analytics') }}">Analytics</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('report') }}">Report</a>
-                        </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="{{ url_for('login') }}">Login</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="{{ url_for('register') }}">Register</a>
+                            </li>
                         {% endif %}
-                        <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('logout') }}">Logout</a>
-                        </li>
-                    {% else %}
-                        <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('login') }}">Login</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('register') }}">Register</a>
-                        </li>
-                    {% endif %}
-                </ul>
+                    </ul>
+                </div>
             </div>
-        </div>
-    </nav>
+        </nav>
+    </header>
 
-    <div class="container my-4">
+    <main class="container my-4">
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
                 {% for category, message in messages %}
@@ -71,11 +100,12 @@
         {% endwith %}
 
         {% block content %}{% endblock %}
-    </div>
+    </main>
 
     <footer class="bg-dark text-light py-4 mt-5">
         <div class="container text-center">
-            <p>&copy; 2024 Chino Park Parking Management</p>
+            <p>&copy; 2025 Chino Park Parking Management | <a href="tel:+255754402368" class="text-light">+255 754 402 368</a></p>
+            <p class="mb-0">Mringo Road, Golani Kijiweni, Kimara, Dar es Salaam</p>
         </div>
     </footer>
 

@@ -3,10 +3,10 @@
 {% block content %}
 <div class="container">
     <!-- Hero Section -->
-    <div class="row align-items-center py-5">
+    <section class="hero row align-items-center py-5">
         <div class="col-md-6">
             <h1 class="display-4 mb-4">Welcome to Chino Park</h1>
-            <p class="lead mb-4">A state-of-the-art parking management system designed for your convenience and security.</p>
+            <p class="lead mb-4">A state-of-the-art parking management system in Dar es Salaam designed for your convenience and security.</p>
             {% if not current_user.is_authenticated %}
             <div class="d-grid gap-2 d-md-flex">
                 <a href="{{ url_for('register') }}" class="btn btn-primary btn-lg">Get Started</a>
@@ -17,85 +17,93 @@
         <div class="col-md-6 text-center">
             <i class="fas fa-parking display-1 text-primary mb-4"></i>
         </div>
-    </div>
+    </section>
 
     <!-- Features Section -->
-    <div class="row py-5">
-        <div class="col-12 text-center mb-5">
-            <h2>Why Choose Chino Park?</h2>
-        </div>
-        <div class="col-md-4 mb-4">
-            <div class="card h-100 border-0">
-                <div class="card-body text-center">
-                    <i class="fas fa-shield-alt fs-1 text-primary mb-3"></i>
-                    <h4 class="card-title">Secure Parking</h4>
-                    <p class="card-text">24/7 surveillance and security personnel ensuring your vehicle's safety.</p>
-                </div>
+    <section class="features py-5">
+        <div class="row">
+            <div class="col-12 text-center mb-5">
+                <h2>Why Choose Chino Park?</h2>
+            </div>
+            <div class="col-md-4 mb-4">
+                <article class="card h-100 border-0">
+                    <div class="card-body text-center">
+                        <i class="fas fa-shield-alt fs-1 text-primary mb-3"></i>
+                        <h3 class="h4 card-title">Secure Parking</h3>
+                        <p class="card-text">24/7 surveillance and security personnel ensuring your vehicle's safety.</p>
+                    </div>
+                </article>
+            </div>
+            <div class="col-md-4 mb-4">
+                <article class="card h-100 border-0">
+                    <div class="card-body text-center">
+                        <i class="fas fa-clock fs-1 text-primary mb-3"></i>
+                        <h3 class="h4 card-title">Real-time Updates</h3>
+                        <p class="card-text">Live parking space availability and instant notifications.</p>
+                    </div>
+                </article>
+            </div>
+            <div class="col-md-4 mb-4">
+                <article class="card h-100 border-0">
+                    <div class="card-body text-center">
+                        <i class="fas fa-mobile-alt fs-1 text-primary mb-3"></i>
+                        <h3 class="h4 card-title">Easy Management</h3>
+                        <p class="card-text">User-friendly interface for quick check-in and check-out process.</p>
+                    </div>
+                </article>
             </div>
         </div>
-        <div class="col-md-4 mb-4">
-            <div class="card h-100 border-0">
-                <div class="card-body text-center">
-                    <i class="fas fa-clock fs-1 text-primary mb-3"></i>
-                    <h4 class="card-title">Real-time Updates</h4>
-                    <p class="card-text">Live parking space availability and instant notifications.</p>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-4 mb-4">
-            <div class="card h-100 border-0">
-                <div class="card-body text-center">
-                    <i class="fas fa-mobile-alt fs-1 text-primary mb-3"></i>
-                    <h4 class="card-title">Easy Management</h4>
-                    <p class="card-text">User-friendly interface for quick check-in and check-out process.</p>
-                </div>
-            </div>
-        </div>
-    </div>
+    </section>
 
     <!-- Vehicle Types Section -->
-    <div class="row py-5">
-        <div class="col-12 text-center mb-5">
-            <h2>Available Parking Spaces</h2>
-        </div>
-        <div class="col-md-4 mb-4">
-            <div class="card h-100">
-                <div class="card-body text-center">
-                    <i class="fas fa-car fs-1 text-primary mb-3"></i>
-                    <h4 class="card-title">Cars</h4>
-                    <p class="card-text">Spacious parking spots for all types of cars.</p>
-                </div>
+    <section class="vehicle-types py-5">
+        <div class="row">
+            <div class="col-12 text-center mb-5">
+                <h2>Available Parking Spaces</h2>
+            </div>
+            <div class="col-md-4 mb-4">
+                <article class="card h-100">
+                    <div class="card-body text-center">
+                        <i class="fas fa-car fs-1 text-primary mb-3"></i>
+                        <h3 class="h4 card-title">Cars</h3>
+                        <p class="card-text">Spacious parking spots for all types of cars.</p>
+                    </div>
+                </article>
+            </div>
+            <div class="col-md-4 mb-4">
+                <article class="card h-100">
+                    <div class="card-body text-center">
+                        <i class="fas fa-motorcycle fs-1 text-primary mb-3"></i>
+                        <h3 class="h4 card-title">Motorcycles</h3>
+                        <p class="card-text">Dedicated area for motorcycles with easy access.</p>
+                    </div>
+                </article>
+            </div>
+            <div class="col-md-4 mb-4">
+                <article class="card h-100">
+                    <div class="card-body text-center">
+                        <i class="fas fa-taxi fs-1 text-primary mb-3"></i>
+                        <h3 class="h4 card-title">Bajaj</h3>
+                        <p class="card-text">Special zones for three-wheelers and commercial vehicles.</p>
+                    </div>
+                </article>
             </div>
         </div>
-        <div class="col-md-4 mb-4">
-            <div class="card h-100">
-                <div class="card-body text-center">
-                    <i class="fas fa-motorcycle fs-1 text-primary mb-3"></i>
-                    <h4 class="card-title">Motorcycles</h4>
-                    <p class="card-text">Dedicated area for motorcycles with easy access.</p>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-4 mb-4">
-            <div class="card h-100">
-                <div class="card-body text-center">
-                    <i class="fas fa-taxi fs-1 text-primary mb-3"></i>
-                    <h4 class="card-title">Bajaj</h4>
-                    <p class="card-text">Special zones for three-wheelers and commercial vehicles.</p>
-                </div>
-            </div>
-        </div>
-    </div>
+    </section>
 
     <!-- Contact Section -->
-    <div class="row py-5">
-        <div class="col-12 text-center">
-            <h2>Visit Us</h2>
-            <p class="lead">Located in the heart of the city</p>
-            <p><i class="fas fa-map-marker-alt me-2"></i>Mringo Road, Golani Kijiweni, Kimara, Dar es Salaam</p>
-            <p><i class="fas fa-phone me-2"></i>+255 754 402 368</p>
-            <p><i class="fas fa-envelope me-2"></i>info@chinopark.com</p>
+    <section class="contact py-5" id="contact">
+        <div class="row">
+            <div class="col-12 text-center">
+                <h2>Visit Us</h2>
+                <p class="lead">Located in the heart of Dar es Salaam</p>
+                <address>
+                    <p><i class="fas fa-map-marker-alt me-2"></i>Mringo Road, Golani Kijiweni, Kimara, Dar es Salaam</p>
+                    <p><i class="fas fa-phone me-2"></i><a href="tel:+255754402368" class="text-decoration-none">+255 754 402 368</a></p>
+                    <p><i class="fas fa-envelope me-2"></i><a href="mailto:info@chinopark.com" class="text-decoration-none">info@chinopark.com</a></p>
+                </address>
+            </div>
         </div>
-    </div>
+    </section>
 </div>
 {% endblock %}
