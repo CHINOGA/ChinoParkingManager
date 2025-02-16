@@ -56,7 +56,8 @@ def initialize_database():
                 default_admin = User(
                     username='admin',
                     email='admin@chinopark.com',
-                    is_admin=True
+                    is_admin=True,
+                    is_approved=True # Admin is approved by default
                 )
                 default_admin.set_password('admin123')
                 db.session.add(default_admin)
@@ -84,6 +85,10 @@ def login():
         user = User.query.filter_by(username=username).first()
 
         if user and user.check_password(password):
+            if not user.is_approved and not user.is_admin:
+                flash('Your account is pending approval.', 'warning')
+                return redirect(url_for('login'))
+
             login_user(user)
             user.last_login = datetime.utcnow()
             db.session.commit()
@@ -124,16 +129,59 @@ def register():
         user = User(
             username=username,
             email=email,
-            is_admin=False  # Regular users are not admins by default
+            is_admin=False,  # Regular users are not admins by default
+            is_approved=False  # Users need admin approval by default
         )
         user.set_password(password)
         db.session.add(user)
         db.session.commit()
 
-        flash('Registration successful. Please login.', 'success')
+        flash('Registration successful. Please wait for admin approval.', 'success')
         return redirect(url_for('login'))
 
     return render_template('auth/register.html')
+
+# Add these new routes for user management
+@app.route('/admin/users')
+@login_required
+def manage_users():
+    if not current_user.is_admin:
+        flash('Access denied. Admin privileges required.', 'error')
+        return redirect(url_for('index'))
+
+    pending_users = User.query.filter_by(is_approved=False, is_admin=False).all()
+    all_users = User.query.all()
+
+    return render_template('admin/users.html', 
+                         pending_users=pending_users,
+                         all_users=all_users)
+
+@app.route('/admin/users/<int:user_id>/approve', methods=['POST'])
+@login_required
+def approve_user(user_id):
+    if not current_user.is_admin:
+        flash('Access denied. Admin privileges required.', 'error')
+        return redirect(url_for('index'))
+
+    user = User.query.get_or_404(user_id)
+    user.is_approved = True
+    db.session.commit()
+    flash(f'User {user.username} has been approved.', 'success')
+    return redirect(url_for('manage_users'))
+
+@app.route('/admin/users/<int:user_id>/reject', methods=['POST'])
+@login_required
+def reject_user(user_id):
+    if not current_user.is_admin:
+        flash('Access denied. Admin privileges required.', 'error')
+        return redirect(url_for('index'))
+
+    user = User.query.get_or_404(user_id)
+    # Instead of deleting, we could also add a rejected status
+    db.session.delete(user)
+    db.session.commit()
+    flash(f'User {user.username} has been rejected.', 'success')
+    return redirect(url_for('manage_users'))
 
 @app.route('/logout')
 @login_required
