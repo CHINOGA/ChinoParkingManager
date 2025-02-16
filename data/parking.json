@@ -1,9 +1,16 @@
 {
-  "vehicles": [],
+  "vehicles": [
+    {
+      "type": "motorcycle",
+      "plate_number": "MC555EEH",
+      "check_in_time": "2025-02-16T13:00:19.189005",
+      "status": "active"
+    }
+  ],
   "spaces": {
     "motorcycle": {
       "total": 50,
-      "occupied": 0
+      "occupied": 1
     },
     "bajaj": {
       "total": 30,
