@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <!-- Hero Section -->
+    <div class="row align-items-center py-5">
+        <div class="col-md-6">
+            <h1 class="display-4 mb-4">Welcome to Chino Park</h1>
+            <p class="lead mb-4">A state-of-the-art parking management system designed for your convenience and security.</p>
+            {% if not current_user.is_authenticated %}
+            <div class="d-grid gap-2 d-md-flex">
+                <a href="{{ url_for('register') }}" class="btn btn-primary btn-lg">Get Started</a>
+                <a href="{{ url_for('login') }}" class="btn btn-outline-secondary btn-lg">Login</a>
+            </div>
+            {% endif %}
+        </div>
+        <div class="col-md-6 text-center">
+            <i class="fas fa-parking display-1 text-primary mb-4"></i>
+        </div>
+    </div>
+
+    <!-- Features Section -->
+    <div class="row py-5">
+        <div class="col-12 text-center mb-5">
+            <h2>Why Choose Chino Park?</h2>
+        </div>
+        <div class="col-md-4 mb-4">
+            <div class="card h-100 border-0">
+                <div class="card-body text-center">
+                    <i class="fas fa-shield-alt fs-1 text-primary mb-3"></i>
+                    <h4 class="card-title">Secure Parking</h4>
+                    <p class="card-text">24/7 surveillance and security personnel ensuring your vehicle's safety.</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-4">
+            <div class="card h-100 border-0">
+                <div class="card-body text-center">
+                    <i class="fas fa-clock fs-1 text-primary mb-3"></i>
+                    <h4 class="card-title">Real-time Updates</h4>
+                    <p class="card-text">Live parking space availability and instant notifications.</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-4">
+            <div class="card h-100 border-0">
+                <div class="card-body text-center">
+                    <i class="fas fa-mobile-alt fs-1 text-primary mb-3"></i>
+                    <h4 class="card-title">Easy Management</h4>
+                    <p class="card-text">User-friendly interface for quick check-in and check-out process.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Vehicle Types Section -->
+    <div class="row py-5">
+        <div class="col-12 text-center mb-5">
+            <h2>Available Parking Spaces</h2>
+        </div>
+        <div class="col-md-4 mb-4">
+            <div class="card h-100">
+                <div class="card-body text-center">
+                    <i class="fas fa-car fs-1 text-primary mb-3"></i>
+                    <h4 class="card-title">Cars</h4>
+                    <p class="card-text">Spacious parking spots for all types of cars.</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-4">
+            <div class="card h-100">
+                <div class="card-body text-center">
+                    <i class="fas fa-motorcycle fs-1 text-primary mb-3"></i>
+                    <h4 class="card-title">Motorcycles</h4>
+                    <p class="card-text">Dedicated area for motorcycles with easy access.</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-4">
+            <div class="card h-100">
+                <div class="card-body text-center">
+                    <i class="fas fa-taxi fs-1 text-primary mb-3"></i>
+                    <h4 class="card-title">Bajaj</h4>
+                    <p class="card-text">Special zones for three-wheelers and commercial vehicles.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Contact Section -->
+    <div class="row py-5">
+        <div class="col-12 text-center">
+            <h2>Visit Us</h2>
+            <p class="lead">Located in the heart of the city</p>
+            <p><i class="fas fa-map-marker-alt me-2"></i>123 City Center, Chino Street</p>
+            <p><i class="fas fa-phone me-2"></i>+255 123 456 789</p>
+            <p><i class="fas fa-envelope me-2"></i>info@chinopark.com</p>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -85,10 +85,21 @@ with app.app_context():
     initialize_default_data()
 
 # Authentication routes
+@app.route('/')
+def landing():
+    return render_template('landing.html')
+
+@app.route('/dashboard')
+@login_required
+def dashboard():
+    spaces = {space.vehicle_type: {"total": space.total_spaces, "occupied": space.occupied_spaces}
+             for space in ParkingSpace.query.all()}
+    return render_template('index.html', spaces=spaces)
+
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if current_user.is_authenticated:
-        return redirect(url_for('index'))
+        return redirect(url_for('dashboard'))
 
     if request.method == 'POST':
         username = request.form.get('username')
@@ -109,7 +120,7 @@ def login():
             # Redirect admin users to admin dashboard
             if user.is_admin:
                 return redirect(url_for('admin_dashboard'))
-            return redirect(url_for('index'))
+            return redirect(url_for('dashboard'))
 
         flash('Invalid username or password.', 'error')
 
@@ -118,7 +129,7 @@ def login():
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if current_user.is_authenticated:
-        return redirect(url_for('index'))
+        return redirect(url_for('dashboard'))
 
     if request.method == 'POST':
         username = request.form.get('username')
@@ -159,7 +170,7 @@ def register():
 def manage_users():
     if not current_user.is_admin:
         flash('Access denied. Admin privileges required.', 'error')
-        return redirect(url_for('index'))
+        return redirect(url_for('dashboard'))
 
     pending_users = User.query.filter_by(is_approved=False, is_admin=False).all()
     all_users = User.query.all()
@@ -173,7 +184,7 @@ def manage_users():
 def approve_user(user_id):
     if not current_user.is_admin:
         flash('Access denied. Admin privileges required.', 'error')
-        return redirect(url_for('index'))
+        return redirect(url_for('dashboard'))
 
     user = User.query.get_or_404(user_id)
     user.is_approved = True
@@ -186,7 +197,7 @@ def approve_user(user_id):
 def reject_user(user_id):
     if not current_user.is_admin:
         flash('Access denied. Admin privileges required.', 'error')
-        return redirect(url_for('index'))
+        return redirect(url_for('dashboard'))
 
     user = User.query.get_or_404(user_id)
     # Instead of deleting, we could also add a rejected status
@@ -208,7 +219,7 @@ def logout():
 def admin_dashboard():
     if not current_user.is_admin:
         flash('Access denied. Admin privileges required.', 'error')
-        return redirect(url_for('index'))
+        return redirect(url_for('dashboard'))
 
     total_vehicles = Vehicle.query.count()
     active_vehicles = Vehicle.query.filter_by(status='active').count()
@@ -236,7 +247,7 @@ def admin_dashboard():
 def admin_spaces():
     if not current_user.is_admin:
         flash('Access denied. Admin privileges required.', 'error')
-        return redirect(url_for('index'))
+        return redirect(url_for('dashboard'))
 
     spaces = ParkingSpace.query.all()
     return render_template('admin/spaces.html', spaces=spaces)
@@ -246,7 +257,7 @@ def admin_spaces():
 def update_spaces():
     if not current_user.is_admin:
         flash('Access denied. Admin privileges required.', 'error')
-        return redirect(url_for('index'))
+        return redirect(url_for('dashboard'))
 
     try:
         space_id = request.form.get('space_id')
@@ -266,13 +277,6 @@ def update_spaces():
     return redirect(url_for('admin_spaces'))
 
 # Protected routes for regular users
-@app.route('/')
-@login_required
-def index():
-    spaces = {space.vehicle_type: {"total": space.total_spaces, "occupied": space.occupied_spaces}
-             for space in ParkingSpace.query.all()}
-    return render_template('index.html', spaces=spaces)
-
 @app.route('/check-in', methods=['POST'])
 @login_required
 def check_in():
@@ -291,7 +295,7 @@ def check_in():
         space = ParkingSpace.query.filter_by(vehicle_type=vehicle_type).first()
         if not space or space.occupied_spaces >= space.total_spaces:
             flash('No available spaces for this vehicle type!', 'error')
-            return redirect(url_for('index'))
+            return redirect(url_for('dashboard'))
 
         # Check if vehicle already exists and is active
         existing_vehicle = Vehicle.query.filter_by(
@@ -301,7 +305,7 @@ def check_in():
 
         if existing_vehicle:
             flash('Vehicle is already parked!', 'error')
-            return redirect(url_for('index'))
+            return redirect(url_for('dashboard'))
 
         # Create new vehicle record
         vehicle = Vehicle(
@@ -328,7 +332,7 @@ def check_in():
         flash('An error occurred during check-in!', 'error')
         db.session.rollback()
 
-    return redirect(url_for('index'))
+    return redirect(url_for('dashboard'))
 
 @app.route('/check-out', methods=['POST'])
 @login_required
@@ -343,7 +347,7 @@ def check_out():
 
         if not vehicle:
             flash('Vehicle not found or already checked out!', 'error')
-            return redirect(url_for('index'))
+            return redirect(url_for('dashboard'))
 
         space = ParkingSpace.query.filter_by(vehicle_type=vehicle.vehicle_type).first()
         if space:
@@ -358,7 +362,7 @@ def check_out():
         flash('An error occurred during check-out!', 'error')
         db.session.rollback()
 
-    return redirect(url_for('index'))
+    return redirect(url_for('dashboard'))
 
 @app.route('/report')
 @login_required
@@ -497,7 +501,7 @@ def analytics():
     except Exception as e:
         logger.error(f"Error in analytics: {str(e)}")
         flash('Error loading analytics data', 'error')
-        return redirect(url_for('index'))
+        return redirect(url_for('dashboard'))
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
