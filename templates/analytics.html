@@ -1,0 +1,171 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <h1 class="text-center mb-4">Parking Analytics</h1>
+    </div>
+</div>
+
+<div class="row g-4">
+    <!-- Current Occupancy -->
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-header">
+                <h3 class="card-title mb-0">Current Occupancy</h3>
+            </div>
+            <div class="card-body">
+                <canvas id="occupancyChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Vehicle Distribution -->
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-header">
+                <h3 class="card-title mb-0">Vehicle Type Distribution</h3>
+            </div>
+            <div class="card-body">
+                <canvas id="distributionChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hourly Check-ins -->
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title mb-0">Hourly Check-ins (Last 24 Hours)</h3>
+            </div>
+            <div class="card-body">
+                <canvas id="checkinsChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics Summary -->
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title mb-0">Parking Statistics</h3>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    {% for vehicle_type, data in current_occupancy.items() %}
+                    <div class="col-md-4 mb-3">
+                        <div class="card bg-dark">
+                            <div class="card-body">
+                                <h4 class="text-capitalize">{{ vehicle_type }}</h4>
+                                <p class="mb-0">
+                                    Occupancy: {{ data.occupied }} / {{ data.total }}
+                                    ({{ "%.1f"|format(data.percentage) }}%)
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                    <div class="col-md-4 mb-3">
+                        <div class="card bg-dark">
+                            <div class="card-body">
+                                <h4>Average Duration</h4>
+                                <p class="mb-0">
+                                    {{ avg_duration.total_seconds()|int // 3600 }} hours
+                                    {{ (avg_duration.total_seconds() % 3600 // 60)|int }} minutes
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Occupancy Chart
+    new Chart(document.getElementById('occupancyChart'), {
+        type: 'bar',
+        data: {
+            labels: {{ current_occupancy.keys()|list|tojson }},
+            datasets: [{
+                label: 'Occupied',
+                data: {{ [data.occupied for data in current_occupancy.values()]|tojson }},
+                backgroundColor: 'rgba(75, 192, 192, 0.5)',
+                borderColor: 'rgba(75, 192, 192, 1)',
+                borderWidth: 1
+            }, {
+                label: 'Total',
+                data: {{ [data.total for data in current_occupancy.values()]|tojson }},
+                backgroundColor: 'rgba(54, 162, 235, 0.5)',
+                borderColor: 'rgba(54, 162, 235, 1)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+
+    // Distribution Chart
+    new Chart(document.getElementById('distributionChart'), {
+        type: 'pie',
+        data: {
+            labels: {{ vehicle_distribution.keys()|list|tojson }},
+            datasets: [{
+                data: {{ vehicle_distribution.values()|list|tojson }},
+                backgroundColor: [
+                    'rgba(255, 99, 132, 0.5)',
+                    'rgba(54, 162, 235, 0.5)',
+                    'rgba(255, 206, 86, 0.5)'
+                ],
+                borderColor: [
+                    'rgba(255, 99, 132, 1)',
+                    'rgba(54, 162, 235, 1)',
+                    'rgba(255, 206, 86, 1)'
+                ],
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true
+        }
+    });
+
+    // Hourly Check-ins Chart
+    new Chart(document.getElementById('checkinsChart'), {
+        type: 'line',
+        data: {
+            labels: {{ hourly_data.keys()|list|tojson }},
+            datasets: [{
+                label: 'Check-ins',
+                data: {{ hourly_data.values()|list|tojson }},
+                fill: false,
+                borderColor: 'rgba(75, 192, 192, 1)',
+                tension: 0.1
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        stepSize: 1
+                    }
+                }
+            }
+        }
+    });
+});
+</script>
+{% endblock %}

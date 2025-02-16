@@ -4,6 +4,8 @@ from datetime import datetime
 from flask import Flask, render_template, request, flash, redirect, url_for
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.orm import DeclarativeBase
+from sqlalchemy import func
+from datetime import datetime, timedelta
 
 # Set up logging
 logging.basicConfig(level=logging.DEBUG)
@@ -146,6 +148,67 @@ def report():
     spaces = {space.vehicle_type: {"total": space.total_spaces, "occupied": space.occupied_spaces}
              for space in ParkingSpace.query.all()}
     return render_template('report.html', vehicles=active_vehicles, spaces=spaces)
+
+@app.route('/analytics')
+def analytics():
+    try:
+        # Get current occupancy by vehicle type
+        current_occupancy = {
+            space.vehicle_type: {
+                'total': space.total_spaces,
+                'occupied': space.occupied_spaces,
+                'percentage': (space.occupied_spaces / space.total_spaces * 100) if space.total_spaces > 0 else 0
+            }
+            for space in ParkingSpace.query.all()
+        }
+
+        # Get vehicle type distribution
+        vehicle_counts = db.session.query(
+            Vehicle.vehicle_type,
+            func.count(Vehicle.id)
+        ).group_by(Vehicle.vehicle_type).all()
+
+        vehicle_distribution = {vtype: count for vtype, count in vehicle_counts}
+
+        # Calculate average parking duration for completed parkings
+        completed_parkings = Vehicle.query.filter(
+            Vehicle.status == 'completed',
+            Vehicle.check_out_time.isnot(None)
+        ).all()
+
+        avg_duration = timedelta()
+        if completed_parkings:
+            durations = [(v.check_out_time - v.check_in_time) for v in completed_parkings]
+            avg_duration = sum(durations, timedelta()) / len(durations)
+
+        # Get hourly check-ins for the past 24 hours
+        yesterday = datetime.utcnow() - timedelta(days=1)
+        hourly_checkins = db.session.query(
+            func.date_trunc('hour', Vehicle.check_in_time),
+            func.count(Vehicle.id)
+        ).filter(
+            Vehicle.check_in_time >= yesterday
+        ).group_by(
+            func.date_trunc('hour', Vehicle.check_in_time)
+        ).all()
+
+        # Format for the template
+        hourly_data = {
+            timestamp.strftime('%Y-%m-%d %H:00'): count
+            for timestamp, count in hourly_checkins
+        }
+
+        return render_template(
+            'analytics.html',
+            current_occupancy=current_occupancy,
+            vehicle_distribution=vehicle_distribution,
+            avg_duration=avg_duration,
+            hourly_data=hourly_data
+        )
+    except Exception as e:
+        logger.error(f"Error in analytics: {str(e)}")
+        flash('Error loading analytics data', 'error')
+        return redirect(url_for('index'))
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
