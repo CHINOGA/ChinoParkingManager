@@ -1,7 +1,10 @@
 from datetime import datetime, timedelta
-from app import db
-from werkzeug.security import generate_password_hash, check_password_hash
+from flask_sqlalchemy import SQLAlchemy
 from flask_login import UserMixin
+from werkzeug.security import generate_password_hash, check_password_hash
+
+# Initialize SQLAlchemy without binding to app yet
+db = SQLAlchemy()
 
 class Vehicle(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -51,18 +54,6 @@ class ParkingSpace(db.Model):
 
     def __repr__(self):
         return f'<ParkingSpace {self.vehicle_type}>'
-
-    @classmethod
-    def initialize_default_spaces(cls):
-        """Initialize default parking spaces if none exist"""
-        if not cls.query.first():
-            default_spaces = [
-                cls(vehicle_type='motorcycle', total_spaces=50),
-                cls(vehicle_type='bajaj', total_spaces=30),
-                cls(vehicle_type='car', total_spaces=20)
-            ]
-            db.session.bulk_save_objects(default_spaces)
-            db.session.commit()
 
 class Admin(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)

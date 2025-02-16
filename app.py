@@ -1,22 +1,16 @@
 import os
 import logging
-from datetime import datetime
-from flask import Flask, render_template, request, flash, redirect, url_for
-from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy.orm import DeclarativeBase
 from datetime import datetime, timedelta
-from sqlalchemy import func, desc
+from flask import Flask, render_template, request, flash, redirect, url_for
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
-from werkzeug.security import generate_password_hash
+from sqlalchemy import func, desc
+from models import db, Vehicle, ParkingSpace, Admin
 
 # Set up logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
-class Base(DeclarativeBase):
-    pass
-
-db = SQLAlchemy(model_class=Base)
+# Initialize Flask app
 app = Flask(__name__)
 app.secret_key = os.environ.get("SESSION_SECRET")
 
@@ -27,49 +21,55 @@ app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
     "pool_recycle": 300,
     "pool_pre_ping": True,
 }
-db.init_app(app)
 
-# Initialize Flask-Login
+# Initialize extensions
+db.init_app(app)
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'admin_login'
 login_manager.login_message = 'Please log in to access the admin panel.'
 
-# Import models after db initialization
-from models import Vehicle, ParkingSpace, Admin  # noqa
-
 @login_manager.user_loader
 def load_user(user_id):
     return Admin.query.get(int(user_id))
 
+def initialize_database():
+    """Initialize database with default data"""
+    try:
+        # Create all tables
+        db.create_all()
+
+        # Initialize default spaces if none exist
+        if not ParkingSpace.query.first():
+            logger.info("Initializing default parking spaces...")
+            default_spaces = [
+                ParkingSpace(vehicle_type='motorcycle', total_spaces=50, occupied_spaces=0),
+                ParkingSpace(vehicle_type='bajaj', total_spaces=30, occupied_spaces=0),
+                ParkingSpace(vehicle_type='car', total_spaces=20, occupied_spaces=0)
+            ]
+            db.session.bulk_save_objects(default_spaces)
+
+            # Create default admin account if none exists
+            if not Admin.query.first():
+                logger.info("Creating default admin account...")
+                default_admin = Admin(
+                    username='admin',
+                    email='admin@chinopark.com'
+                )
+                default_admin.set_password('admin123')
+                db.session.add(default_admin)
+
+            db.session.commit()
+            logger.info("Database initialization completed successfully")
+    except Exception as e:
+        logger.error(f"Error during database initialization: {str(e)}")
+        db.session.rollback()
+        raise
+
 with app.app_context():
-    # Create tables
-    db.create_all()
+    initialize_database()
 
-    # Initialize default spaces if none exist
-    logger.info("Checking for default parking spaces...")
-    if not ParkingSpace.query.first():
-        logger.info("Initializing default parking spaces...")
-        default_spaces = [
-            ParkingSpace(vehicle_type='motorcycle', total_spaces=50, occupied_spaces=0),
-            ParkingSpace(vehicle_type='bajaj', total_spaces=30, occupied_spaces=0),
-            ParkingSpace(vehicle_type='car', total_spaces=20, occupied_spaces=0)
-        ]
-        db.session.bulk_save_objects(default_spaces)
-
-        # Create default admin account if none exists
-        if not Admin.query.first():
-            default_admin = Admin(
-                username='admin',
-                email='admin@chinopark.com'
-            )
-            default_admin.set_password('admin123')
-            db.session.add(default_admin)
-
-        db.session.commit()
-        logger.info("Default spaces and admin account initialized successfully")
-
-# Existing routes...
+# Routes
 @app.route('/')
 def index():
     spaces = {space.vehicle_type: {"total": space.total_spaces, "occupied": space.occupied_spaces}
@@ -79,7 +79,6 @@ def index():
 @app.route('/check-in', methods=['POST'])
 def check_in():
     try:
-        # Get all form data
         vehicle_type = request.form.get('vehicle_type')
         plate_number = request.form.get('plate_number')
         vehicle_model = request.form.get('vehicle_model')
@@ -124,7 +123,6 @@ def check_in():
         space.occupied_spaces += 1
         db.session.add(vehicle)
         db.session.commit()
-        logger.debug(f"Vehicle {plate_number} checked in successfully")
         flash('Vehicle checked in successfully!', 'success')
     except Exception as e:
         logger.error(f"Error during check-in: {str(e)}")
@@ -153,7 +151,6 @@ def check_out():
         vehicle.status = 'completed'
         vehicle.check_out_time = datetime.utcnow()
         db.session.commit()
-        logger.debug(f"Vehicle {plate_number} checked out successfully")
         flash('Vehicle checked out successfully!', 'success')
     except Exception as e:
         logger.error(f"Error during check-out: {str(e)}")
@@ -365,4 +362,4 @@ def update_spaces():
     return redirect(url_for('admin_spaces'))
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=False)
+    app.run(host='0.0.0.0', port=5000)
