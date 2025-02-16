@@ -3,8 +3,19 @@ from app import db
 
 class Vehicle(db.Model):
     id = db.Column(db.Integer, primary_key=True)
+    # Vehicle Information
     plate_number = db.Column(db.String(10), unique=True, nullable=False)
     vehicle_type = db.Column(db.String(20), nullable=False)
+    vehicle_color = db.Column(db.String(50), nullable=False)
+
+    # Driver Information
+    driver_name = db.Column(db.String(100), nullable=False)
+    driver_id_type = db.Column(db.String(50), nullable=False)  # National ID, Passport, etc.
+    driver_id_number = db.Column(db.String(50), nullable=False)
+    driver_phone = db.Column(db.String(20), nullable=False)
+    driver_residence = db.Column(db.String(200), nullable=False)
+
+    # Timing Information
     check_in_time = db.Column(db.DateTime, default=datetime.utcnow)
     check_out_time = db.Column(db.DateTime, nullable=True)
     status = db.Column(db.String(20), default='active')
@@ -21,13 +32,21 @@ class Vehicle(db.Model):
     def formatted_check_in_time(self):
         """Return check-in time in EAT format"""
         eat_time = self.get_east_african_time(self.check_in_time)
-        return eat_time.strftime('%H:%M') if eat_time else ''
+        return eat_time.strftime('%Y-%m-%d %H:%M') if eat_time else ''
+
+    def formatted_check_out_time(self):
+        """Return check-out time in EAT format"""
+        eat_time = self.get_east_african_time(self.check_out_time)
+        return eat_time.strftime('%Y-%m-%d %H:%M') if eat_time else ''
 
     def to_dict(self):
         return {
             'id': self.id,
             'plate_number': self.plate_number,
             'vehicle_type': self.vehicle_type,
+            'vehicle_color': self.vehicle_color,
+            'driver_name': self.driver_name,
+            'driver_phone': self.driver_phone,
             'check_in_time': self.check_in_time.isoformat(),
             'check_out_time': self.check_out_time.isoformat() if self.check_out_time else None,
             'status': self.status

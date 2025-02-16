@@ -42,9 +42,17 @@ def index():
 
 @app.route('/check-in', methods=['POST'])
 def check_in():
+    # Get all form data
     vehicle_type = request.form.get('vehicle_type')
     plate_number = request.form.get('plate_number')
+    vehicle_color = request.form.get('vehicle_color')
+    driver_name = request.form.get('driver_name')
+    driver_id_type = request.form.get('driver_id_type')
+    driver_id_number = request.form.get('driver_id_number')
+    driver_phone = request.form.get('driver_phone')
+    driver_residence = request.form.get('driver_residence')
 
+    # Check for available space
     space = ParkingSpace.query.filter_by(vehicle_type=vehicle_type).first()
     if not space or space.occupied_spaces >= space.total_spaces:
         flash('No available spaces for this vehicle type!', 'error')
@@ -60,9 +68,16 @@ def check_in():
         flash('Vehicle is already parked!', 'error')
         return redirect(url_for('index'))
 
+    # Create new vehicle record
     vehicle = Vehicle(
         plate_number=plate_number,
         vehicle_type=vehicle_type,
+        vehicle_color=vehicle_color,
+        driver_name=driver_name,
+        driver_id_type=driver_id_type,
+        driver_id_number=driver_id_number,
+        driver_phone=driver_phone,
+        driver_residence=driver_residence,
         check_in_time=datetime.utcnow(),
         status='active'
     )
