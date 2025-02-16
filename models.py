@@ -8,7 +8,6 @@ class Vehicle(db.Model):
     vehicle_type = db.Column(db.String(20), nullable=False)  # motorcycle, bajaj, car
     vehicle_model = db.Column(db.String(100), nullable=False)
     vehicle_color = db.Column(db.String(50), nullable=False)
-    vehicle_year = db.Column(db.Integer, nullable=True)
 
     # Driver Information
     driver_name = db.Column(db.String(100), nullable=False)

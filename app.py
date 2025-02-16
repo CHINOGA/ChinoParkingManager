@@ -62,7 +62,6 @@ def check_in():
         plate_number = request.form.get('plate_number')
         vehicle_model = request.form.get('vehicle_model')
         vehicle_color = request.form.get('vehicle_color')
-        vehicle_year = request.form.get('vehicle_year')
         driver_name = request.form.get('driver_name')
         driver_id_type = request.form.get('driver_id_type')
         driver_id_number = request.form.get('driver_id_number')
@@ -91,7 +90,6 @@ def check_in():
             vehicle_type=vehicle_type,
             vehicle_model=vehicle_model,
             vehicle_color=vehicle_color,
-            vehicle_year=vehicle_year,
             driver_name=driver_name,
             driver_id_type=driver_id_type,
             driver_id_number=driver_id_number,
@@ -150,4 +148,4 @@ def report():
     return render_template('report.html', vehicles=active_vehicles, spaces=spaces)
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5001, debug=True)
+    app.run(host='0.0.0.0', port=5000, debug=True)
