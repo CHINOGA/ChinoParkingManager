@@ -10,8 +10,8 @@ logger = logging.getLogger(__name__)
 
 if __name__ == "__main__":
     try:
-        logger.info("Starting Flask server on port 5001...")
-        app.run(host='0.0.0.0', port=5001, debug=True)
+        logger.info("Starting Flask server on port 5002...")
+        app.run(host='0.0.0.0', port=5002, debug=True)
     except Exception as e:
         logger.error(f"Failed to start Flask server: {str(e)}", exc_info=True)
         raise
