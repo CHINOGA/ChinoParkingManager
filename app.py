@@ -156,7 +156,14 @@ def analytics():
         spaces = ParkingSpace.query.all()
         logger.debug(f"Found {len(spaces)} parking spaces")
 
-        current_occupancy = {}
+        # Initialize with default values
+        current_occupancy = {
+            'motorcycle': {'total': 50, 'occupied': 0, 'percentage': 0},
+            'bajaj': {'total': 30, 'occupied': 0, 'percentage': 0},
+            'car': {'total': 20, 'occupied': 0, 'percentage': 0}
+        }
+
+        # Update with actual values
         for space in spaces:
             current_occupancy[space.vehicle_type] = {
                 'total': space.total_spaces,
@@ -166,29 +173,22 @@ def analytics():
         logger.debug(f"Current occupancy data: {current_occupancy}")
 
         # Get vehicle type distribution
-        vehicle_counts = db.session.query(
+        vehicle_distribution = {'motorcycle': 0, 'bajaj': 0, 'car': 0}
+
+        # Query active vehicles
+        active_vehicles = db.session.query(
             Vehicle.vehicle_type,
-            func.count(Vehicle.id)
+            func.count(Vehicle.id).label('count')
+        ).filter(
+            Vehicle.status == 'active'
         ).group_by(Vehicle.vehicle_type).all()
-        logger.debug(f"Vehicle counts: {vehicle_counts}")
 
-        vehicle_distribution = {}
-        for vtype, count in vehicle_counts:
-            vehicle_distribution[vtype] = count
+        # Update distribution with actual values
+        for v_type, count in active_vehicles:
+            if v_type in vehicle_distribution:
+                vehicle_distribution[v_type] = count
+
         logger.debug(f"Vehicle distribution: {vehicle_distribution}")
-
-        # Calculate average parking duration for completed parkings
-        completed_parkings = Vehicle.query.filter(
-            Vehicle.status == 'completed',
-            Vehicle.check_out_time.isnot(None)
-        ).all()
-        logger.debug(f"Found {len(completed_parkings)} completed parkings")
-
-        avg_duration = timedelta()
-        if completed_parkings:
-            total_duration = sum((v.check_out_time - v.check_in_time) for v in completed_parkings)
-            avg_duration = total_duration / len(completed_parkings)
-        logger.debug(f"Average duration: {avg_duration}")
 
         # Get hourly check-ins for the past 24 hours
         yesterday = datetime.utcnow() - timedelta(days=1)
@@ -198,40 +198,39 @@ def analytics():
         ).filter(
             Vehicle.check_in_time >= yesterday
         ).group_by(
-            'hour'
-        ).order_by('hour').all()
+            func.date_trunc('hour', Vehicle.check_in_time)
+        ).order_by(
+            func.date_trunc('hour', Vehicle.check_in_time)
+        ).all()
+
         logger.debug(f"Hourly checkins raw data: {hourly_checkins}")
 
-        # Format for the template
+        # Initialize hourly data with empty dictionary
         hourly_data = {}
-        for hour, count in hourly_checkins:
-            if hour:  # Check if hour is not None
-                hourly_data[hour.strftime('%Y-%m-%d %H:00')] = count
-        logger.debug(f"Formatted hourly data: {hourly_data}")
 
-        if not current_occupancy:
-            current_occupancy = {
-                'motorcycle': {'total': 50, 'occupied': 0, 'percentage': 0},
-                'bajaj': {'total': 30, 'occupied': 0, 'percentage': 0},
-                'car': {'total': 20, 'occupied': 0, 'percentage': 0}
-            }
-
-        if not vehicle_distribution:
-            vehicle_distribution = {'motorcycle': 0, 'bajaj': 0, 'car': 0}
-
-        if not hourly_data:
+        # If we have data, format it properly
+        if hourly_checkins:
+            for hour, count in hourly_checkins:
+                if hour:
+                    # Convert UTC to EAT (UTC+3)
+                    eat_hour = hour + timedelta(hours=3)
+                    hourly_data[eat_hour.strftime('%H:00')] = count
+        else:
+            # If no data, initialize with current hour
             current_hour = datetime.utcnow().replace(minute=0, second=0, microsecond=0)
-            hourly_data = {current_hour.strftime('%Y-%m-%d %H:00'): 0}
+            hourly_data = {current_hour.strftime('%H:00'): 0}
+
+        logger.debug(f"Formatted hourly data: {hourly_data}")
 
         return render_template(
             'analytics.html',
             current_occupancy=current_occupancy,
             vehicle_distribution=vehicle_distribution,
-            avg_duration=avg_duration,
             hourly_data=hourly_data
         )
     except Exception as e:
         logger.error(f"Error in analytics: {str(e)}")
+        db.session.rollback()
         flash('Error loading analytics data', 'error')
         return redirect(url_for('index'))
 
