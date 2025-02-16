@@ -58,8 +58,8 @@
                             <div class="card-body">
                                 <h4 class="text-capitalize">{{ vehicle_type }}</h4>
                                 <p class="mb-0">
-                                    Occupancy: {{ data['occupied'] }} / {{ data['total'] }}
-                                    ({{ "%.1f"|format(data['percentage']) }}%)
+                                    Occupancy: {{ data.occupied }} / {{ data.total }}
+                                    ({{ "%.1f"|format(data.percentage) }}%)
                                 </p>
                             </div>
                         </div>
@@ -76,24 +76,20 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    const occupancyLabels = {{ current_occupancy.keys() | list | tojson }};
-    const occupiedData = {{ [data['occupied'] for data in current_occupancy.values()] | list | tojson }};
-    const totalData = {{ [data['total'] for data in current_occupancy.values()] | list | tojson }};
-
     // Occupancy Chart
     new Chart(document.getElementById('occupancyChart'), {
         type: 'bar',
         data: {
-            labels: occupancyLabels,
+            labels: {{ [key for key in current_occupancy.keys()]|tojson }},
             datasets: [{
                 label: 'Occupied',
-                data: occupiedData,
+                data: {{ [data['occupied'] for data in current_occupancy.values()]|tojson }},
                 backgroundColor: 'rgba(75, 192, 192, 0.5)',
                 borderColor: 'rgba(75, 192, 192, 1)',
                 borderWidth: 1
             }, {
                 label: 'Total',
-                data: totalData,
+                data: {{ [data['total'] for data in current_occupancy.values()]|tojson }},
                 backgroundColor: 'rgba(54, 162, 235, 0.5)',
                 borderColor: 'rgba(54, 162, 235, 1)',
                 borderWidth: 1
@@ -116,9 +112,9 @@ document.addEventListener('DOMContentLoaded', function() {
     new Chart(document.getElementById('distributionChart'), {
         type: 'pie',
         data: {
-            labels: {{ vehicle_distribution.keys() | list | tojson }},
+            labels: {{ [key for key in vehicle_distribution.keys()]|tojson }},
             datasets: [{
-                data: {{ vehicle_distribution.values() | list | tojson }},
+                data: {{ [value for value in vehicle_distribution.values()]|tojson }},
                 backgroundColor: [
                     'rgba(255, 99, 132, 0.5)',
                     'rgba(54, 162, 235, 0.5)',
@@ -141,10 +137,10 @@ document.addEventListener('DOMContentLoaded', function() {
     new Chart(document.getElementById('checkinsChart'), {
         type: 'line',
         data: {
-            labels: {{ hourly_data.keys() | list | tojson }},
+            labels: {{ [key for key in hourly_data.keys()]|tojson }},
             datasets: [{
                 label: 'Check-ins',
-                data: {{ hourly_data.values() | list | tojson }},
+                data: {{ [value for value in hourly_data.values()]|tojson }},
                 fill: false,
                 borderColor: 'rgba(75, 192, 192, 1)',
                 tension: 0.1
