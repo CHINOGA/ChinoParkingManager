@@ -4,8 +4,8 @@ from datetime import datetime
 from flask import Flask, render_template, request, flash, redirect, url_for
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.orm import DeclarativeBase
-from sqlalchemy import func
 from datetime import datetime, timedelta
+from sqlalchemy import func, desc
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -146,30 +146,13 @@ def report():
 @app.route('/analytics')
 def analytics():
     try:
-        # Get current occupancy by vehicle type
+        # Get space utilization data
         spaces = ParkingSpace.query.all()
-        logger.debug(f"Found {len(spaces)} parking spaces")
+        space_labels = [space.vehicle_type.title() for space in spaces]
+        space_occupied = [space.occupied_spaces for space in spaces]
+        space_total = [space.total_spaces for space in spaces]
 
-        # Initialize with default values
-        current_occupancy = {
-            'motorcycle': {'total': 50, 'occupied': 0, 'percentage': 0},
-            'bajaj': {'total': 30, 'occupied': 0, 'percentage': 0},
-            'car': {'total': 20, 'occupied': 0, 'percentage': 0}
-        }
-
-        # Update with actual values
-        for space in spaces:
-            current_occupancy[space.vehicle_type] = {
-                'total': space.total_spaces,
-                'occupied': space.occupied_spaces,
-                'percentage': (space.occupied_spaces / space.total_spaces * 100) if space.total_spaces > 0 else 0
-            }
-        logger.debug(f"Current occupancy data: {current_occupancy}")
-
-        # Get vehicle type distribution
-        vehicle_distribution = {'motorcycle': 0, 'bajaj': 0, 'car': 0}
-
-        # Query active vehicles
+        # Get current vehicle distribution
         active_vehicles = db.session.query(
             Vehicle.vehicle_type,
             func.count(Vehicle.id).label('count')
@@ -177,54 +160,102 @@ def analytics():
             Vehicle.status == 'active'
         ).group_by(Vehicle.vehicle_type).all()
 
-        # Update distribution with actual values
+        distribution_labels = []
+        distribution_data = []
         for v_type, count in active_vehicles:
-            if v_type in vehicle_distribution:
-                vehicle_distribution[v_type] = count
+            distribution_labels.append(v_type.title())
+            distribution_data.append(count)
 
-        logger.debug(f"Vehicle distribution: {vehicle_distribution}")
+        # Get recent activities (check-ins and check-outs)
+        today = datetime.utcnow().date()
+        recent_activities = []
 
-        # Get hourly check-ins for the past 24 hours
-        yesterday = datetime.utcnow() - timedelta(days=1)
-        hourly_checkins = db.session.query(
+        # Recent check-ins
+        recent_check_ins = Vehicle.query.filter(
+            Vehicle.check_in_time >= today
+        ).order_by(desc(Vehicle.check_in_time)).limit(10).all()
+
+        for vehicle in recent_check_ins:
+            recent_activities.append({
+                'timestamp': vehicle.formatted_check_in_time(),
+                'type': 'check_in',
+                'vehicle_type': vehicle.vehicle_type,
+                'plate_number': vehicle.plate_number
+            })
+
+        # Recent check-outs
+        recent_check_outs = Vehicle.query.filter(
+            Vehicle.check_out_time >= today,
+            Vehicle.status == 'completed'
+        ).order_by(desc(Vehicle.check_out_time)).limit(10).all()
+
+        for vehicle in recent_check_outs:
+            recent_activities.append({
+                'timestamp': vehicle.formatted_check_out_time(),
+                'type': 'check_out',
+                'vehicle_type': vehicle.vehicle_type,
+                'plate_number': vehicle.plate_number
+            })
+
+        # Sort activities by timestamp
+        recent_activities.sort(key=lambda x: datetime.strptime(x['timestamp'], '%Y-%m-%d %H:%M'), reverse=True)
+        recent_activities = recent_activities[:10]  # Keep only the 10 most recent
+
+        # Calculate daily statistics
+        daily_stats = {
+            'check_ins': Vehicle.query.filter(
+                Vehicle.check_in_time >= today
+            ).count(),
+            'check_outs': Vehicle.query.filter(
+                Vehicle.check_out_time >= today
+            ).count(),
+            'avg_stay_time': '-- hours',  # Placeholder
+            'peak_hour': '-- : --'  # Placeholder
+        }
+
+        # Calculate average stay time for completed parkings today
+        completed_today = Vehicle.query.filter(
+            Vehicle.status == 'completed',
+            Vehicle.check_out_time >= today
+        ).all()
+
+        if completed_today:
+            total_duration = sum(
+                (v.check_out_time - v.check_in_time).total_seconds() / 3600
+                for v in completed_today
+            )
+            avg_hours = round(total_duration / len(completed_today), 1)
+            daily_stats['avg_stay_time'] = f"{avg_hours} hours"
+
+        # Find peak hour
+        peak_hour_data = db.session.query(
             func.date_trunc('hour', Vehicle.check_in_time).label('hour'),
             func.count(Vehicle.id).label('count')
         ).filter(
-            Vehicle.check_in_time >= yesterday
+            Vehicle.check_in_time >= today
         ).group_by(
-            func.date_trunc('hour', Vehicle.check_in_time)
+            'hour'
         ).order_by(
-            func.date_trunc('hour', Vehicle.check_in_time)
-        ).all()
+            desc('count')
+        ).first()
 
-        logger.debug(f"Hourly checkins raw data: {hourly_checkins}")
-
-        # Initialize hourly data with empty dictionary
-        hourly_data = {}
-
-        # If we have data, format it properly
-        if hourly_checkins:
-            for hour, count in hourly_checkins:
-                if hour:
-                    # Convert UTC to EAT (UTC+3)
-                    eat_hour = hour + timedelta(hours=3)
-                    hourly_data[eat_hour.strftime('%H:00')] = count
-        else:
-            # If no data, initialize with current hour
-            current_hour = datetime.utcnow().replace(minute=0, second=0, microsecond=0)
-            hourly_data = {current_hour.strftime('%H:00'): 0}
-
-        logger.debug(f"Formatted hourly data: {hourly_data}")
+        if peak_hour_data and peak_hour_data[0]:
+            peak_hour = peak_hour_data[0] + timedelta(hours=3)  # Convert to EAT
+            daily_stats['peak_hour'] = peak_hour.strftime('%H:00')
 
         return render_template(
             'analytics.html',
-            current_occupancy=current_occupancy,
-            vehicle_distribution=vehicle_distribution,
-            hourly_data=hourly_data
+            space_labels=space_labels,
+            space_occupied=space_occupied,
+            space_total=space_total,
+            distribution_labels=distribution_labels,
+            distribution_data=distribution_data,
+            recent_activities=recent_activities,
+            daily_stats=daily_stats
         )
+
     except Exception as e:
         logger.error(f"Error in analytics: {str(e)}")
-        db.session.rollback()
         flash('Error loading analytics data', 'error')
         return redirect(url_for('index'))
 

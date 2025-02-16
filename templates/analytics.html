@@ -8,11 +8,11 @@
 </div>
 
 <div class="row g-4">
-    <!-- Current Occupancy -->
+    <!-- Parking Space Overview -->
     <div class="col-md-6">
         <div class="card h-100">
             <div class="card-header">
-                <h3 class="card-title mb-0">Current Occupancy</h3>
+                <h3 class="card-title mb-0">Space Utilization</h3>
             </div>
             <div class="card-body">
                 <canvas id="occupancyChart"></canvas>
@@ -20,11 +20,11 @@
         </div>
     </div>
 
-    <!-- Vehicle Distribution -->
+    <!-- Vehicle Type Distribution -->
     <div class="col-md-6">
         <div class="card h-100">
             <div class="card-header">
-                <h3 class="card-title mb-0">Current Vehicle Distribution</h3>
+                <h3 class="card-title mb-0">Vehicle Distribution</h3>
             </div>
             <div class="card-body">
                 <canvas id="distributionChart"></canvas>
@@ -32,39 +32,75 @@
         </div>
     </div>
 
-    <!-- Hourly Check-ins -->
+    <!-- Recent Activity -->
     <div class="col-12">
         <div class="card">
             <div class="card-header">
-                <h3 class="card-title mb-0">Hourly Check-ins</h3>
+                <h3 class="card-title mb-0">Recent Activity</h3>
             </div>
             <div class="card-body">
-                <canvas id="checkinsChart"></canvas>
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Time (EAT)</th>
+                                <th>Activity</th>
+                                <th>Vehicle Type</th>
+                                <th>Plate Number</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for activity in recent_activities %}
+                            <tr>
+                                <td>{{ activity.timestamp }}</td>
+                                <td>
+                                    <span class="badge {% if activity.type == 'check_in' %}bg-success{% else %}bg-danger{% endif %}">
+                                        {{ activity.type|replace('_', ' ')|title }}
+                                    </span>
+                                </td>
+                                <td>{{ activity.vehicle_type|title }}</td>
+                                <td>{{ activity.plate_number }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
     </div>
 
-    <!-- Statistics Summary -->
+    <!-- Daily Statistics -->
     <div class="col-12">
         <div class="card">
             <div class="card-header">
-                <h3 class="card-title mb-0">Parking Statistics</h3>
+                <h3 class="card-title mb-0">Today's Statistics</h3>
             </div>
             <div class="card-body">
-                <div class="row text-center">
-                    {% for vehicle_type, data in current_occupancy.items() %}
-                    <div class="col-md-4 mb-3">
-                        <div class="card bg-dark">
-                            <div class="card-body">
-                                <h4 class="text-capitalize">{{ vehicle_type }}</h4>
-                                <p class="mb-0">
-                                    Occupancy: {{ data.occupied }} / {{ data.total }}
-                                    ({{ "%.1f"|format(data.percentage) }}%)
-                                </p>
-                            </div>
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="text-center">
+                            <h4>Total Check-ins</h4>
+                            <p class="h2">{{ daily_stats.check_ins }}</p>
                         </div>
                     </div>
-                    {% endfor %}
+                    <div class="col-md-3">
+                        <div class="text-center">
+                            <h4>Total Check-outs</h4>
+                            <p class="h2">{{ daily_stats.check_outs }}</p>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="text-center">
+                            <h4>Average Stay Time</h4>
+                            <p class="h2">{{ daily_stats.avg_stay_time }}</p>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="text-center">
+                            <h4>Peak Hour</h4>
+                            <p class="h2">{{ daily_stats.peak_hour }}</p>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -80,16 +116,16 @@ document.addEventListener('DOMContentLoaded', function() {
     new Chart(document.getElementById('occupancyChart'), {
         type: 'bar',
         data: {
-            labels: {{ [key for key in current_occupancy.keys()]|tojson }},
+            labels: {{ space_labels|tojson }},
             datasets: [{
                 label: 'Occupied',
-                data: {{ [data['occupied'] for data in current_occupancy.values()]|tojson }},
+                data: {{ space_occupied|tojson }},
                 backgroundColor: 'rgba(75, 192, 192, 0.5)',
                 borderColor: 'rgba(75, 192, 192, 1)',
                 borderWidth: 1
             }, {
                 label: 'Total',
-                data: {{ [data['total'] for data in current_occupancy.values()]|tojson }},
+                data: {{ space_total|tojson }},
                 backgroundColor: 'rgba(54, 162, 235, 0.5)',
                 borderColor: 'rgba(54, 162, 235, 1)',
                 borderWidth: 1
@@ -112,9 +148,9 @@ document.addEventListener('DOMContentLoaded', function() {
     new Chart(document.getElementById('distributionChart'), {
         type: 'pie',
         data: {
-            labels: {{ [key for key in vehicle_distribution.keys()]|tojson }},
+            labels: {{ distribution_labels|tojson }},
             datasets: [{
-                data: {{ [value for value in vehicle_distribution.values()]|tojson }},
+                data: {{ distribution_data|tojson }},
                 backgroundColor: [
                     'rgba(255, 99, 132, 0.5)',
                     'rgba(54, 162, 235, 0.5)',
@@ -130,32 +166,6 @@ document.addEventListener('DOMContentLoaded', function() {
         },
         options: {
             responsive: true
-        }
-    });
-
-    // Hourly Check-ins Chart
-    new Chart(document.getElementById('checkinsChart'), {
-        type: 'line',
-        data: {
-            labels: {{ [key for key in hourly_data.keys()]|tojson }},
-            datasets: [{
-                label: 'Check-ins',
-                data: {{ [value for value in hourly_data.values()]|tojson }},
-                fill: false,
-                borderColor: 'rgba(75, 192, 192, 1)',
-                tension: 0.1
-            }]
-        },
-        options: {
-            responsive: true,
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    ticks: {
-                        stepSize: 1
-                    }
-                }
-            }
         }
     });
 });
