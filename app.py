@@ -5,7 +5,6 @@ from flask import Flask, render_template, request, flash, redirect, url_for
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from sqlalchemy import func, desc
 from models import db, Vehicle, ParkingSpace, User
-from werkzeug.security import generate_password_hash
 
 # Set up logging
 logging.basicConfig(level=logging.DEBUG)
@@ -77,10 +76,6 @@ def initialize_default_data():
             logger.error(f"Error during data initialization: {str(e)}")
             db.session.rollback()
             raise
-
-# Initialize database and default data
-create_tables()
-initialize_default_data()
 
 # Authentication routes
 @app.route('/login', methods=['GET', 'POST'])
