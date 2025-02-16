@@ -478,10 +478,17 @@ def check_out():
 @app.route('/report')
 @login_required
 def report():
-    active_vehicles = Vehicle.query.filter_by(status='active', user_id=current_user.id).all()
-    spaces = {space.vehicle_type: {"total": space.total_spaces, "occupied": space.occupied_spaces}
-             for space in ParkingSpace.query.all()}
-    return render_template('report.html', vehicles=active_vehicles, spaces=spaces)
+    # Get both active and completed vehicles for the current user
+    vehicles = Vehicle.query.filter_by(user_id=current_user.id).order_by(
+        Vehicle.check_in_time.desc()
+    ).all()
+
+    # Pass current time for duration calculations of active parkings
+    now = datetime.utcnow()
+
+    return render_template('report.html', 
+                         vehicles=vehicles,
+                         now=now)
 
 @app.route('/analytics')
 @login_required

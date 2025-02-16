@@ -7,39 +7,11 @@
     </div>
 </div>
 
-<div class="row mb-4">
-    <div class="col-12">
-        <div class="card">
-            <div class="card-header">
-                <h3 class="card-title mb-0">Current Occupancy</h3>
-            </div>
-            <div class="card-body">
-                <div class="row g-4">
-                    {% for vehicle_type, data in spaces.items() %}
-                    <div class="col-md-4">
-                        <div class="text-center">
-                            <h4 class="text-capitalize">{{ vehicle_type }}</h4>
-                            <div class="progress mb-2">
-                                <div class="progress-bar {% if data.occupied/data.total > 0.8 %}bg-danger{% elif data.occupied/data.total > 0.5 %}bg-warning{% else %}bg-success{% endif %}"
-                                     role="progressbar"
-                                     style="width: {{ (data.occupied/data.total * 100)|round }}%">
-                                    {{ data.occupied }} / {{ data.total }}
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    {% endfor %}
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
 <div class="row">
     <div class="col-12">
         <div class="card">
             <div class="card-header">
-                <h3 class="card-title mb-0">Currently Parked Vehicles</h3>
+                <h3 class="card-title mb-0">Vehicle Parking Records</h3>
             </div>
             <div class="card-body">
                 {% if vehicles %}
@@ -50,6 +22,8 @@
                                 <th>Vehicle Information</th>
                                 <th>Driver Information</th>
                                 <th>Check-in Time (EAT)</th>
+                                <th>Check-out Time (EAT)</th>
+                                <th>Duration</th>
                                 <th>Status</th>
                             </tr>
                         </thead>
@@ -72,8 +46,20 @@
                                     </small>
                                 </td>
                                 <td>{{ vehicle.formatted_check_in_time() }}</td>
+                                <td>{{ vehicle.formatted_check_out_time() or '-' }}</td>
                                 <td>
-                                    <span class="badge bg-info">Active</span>
+                                    {% if vehicle.status == 'completed' %}
+                                        {% set duration = ((vehicle.check_out_time - vehicle.check_in_time).total_seconds() / 3600)|round(1) %}
+                                        {{ duration }} hours
+                                    {% else %}
+                                        {% set duration = ((now - vehicle.check_in_time).total_seconds() / 3600)|round(1) %}
+                                        {{ duration }} hours (ongoing)
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="badge {% if vehicle.status == 'active' %}bg-info{% else %}bg-success{% endif %}">
+                                        {{ vehicle.status|title }}
+                                    </span>
                                 </td>
                             </tr>
                             {% endfor %}
@@ -83,7 +69,7 @@
                 {% else %}
                 <div class="text-center py-4">
                     <i class="fas fa-parking mb-3" style="font-size: 3rem;"></i>
-                    <p class="lead">No vehicles currently parked</p>
+                    <p class="lead">No vehicle records found</p>
                 </div>
                 {% endif %}
             </div>
