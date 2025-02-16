@@ -3,7 +3,7 @@
 {% block content %}
 <div class="row mb-4">
     <div class="col-12">
-        <h1 class="text-center mb-4">Parking Space Management</h1>
+        <h1 class="text-center mb-4">Usimamizi wa Maegesho (Parking Management)</h1>
     </div>
 </div>
 
@@ -24,7 +24,7 @@
                     </div>
                 </div>
                 <p class="card-text">
-                    Available Spaces: {{ data.total - data.occupied }}
+                    Nafasi Zilizopo: {{ data.total - data.occupied }}
                 </p>
             </div>
         </div>
@@ -36,61 +36,66 @@
     <div class="col-md-6 mb-4">
         <div class="card">
             <div class="card-header">
-                <h3 class="card-title mb-0">Check In Vehicle</h3>
+                <h3 class="card-title mb-0">Sajili Gari (Check In Vehicle)</h3>
             </div>
             <div class="card-body">
                 <form id="checkInForm" action="{{ url_for('check_in') }}" method="POST">
-                    <h4 class="mb-3">Vehicle Information</h4>
+                    <h4 class="mb-3">Taarifa za Gari (Vehicle Information)</h4>
                     <div class="mb-3">
-                        <label for="vehicle_type" class="form-label">Vehicle Type</label>
+                        <label for="vehicle_type" class="form-label">Aina ya Gari (Vehicle Type)</label>
                         <select class="form-select" id="vehicle_type" name="vehicle_type" required>
-                            <option value="motorcycle">Motorcycle</option>
-                            <option value="bajaj">Bajaj</option>
-                            <option value="car">Car</option>
+                            <option value="motorcycle">Pikipiki (Motorcycle)</option>
+                            <option value="bajaj">Bajaji (Bajaj)</option>
+                            <option value="car">Gari (Car)</option>
                         </select>
                     </div>
                     <div class="mb-3">
-                        <label for="plateNumber" class="form-label">Plate Number</label>
+                        <label for="plateNumber" class="form-label">Namba ya Usajili (Plate Number)</label>
                         <input type="text" class="form-control plate-number" id="plateNumber" name="plate_number" 
-                               required pattern="[A-Za-z0-9]{3,10}" placeholder="Enter plate number">
+                               required pattern="[A-Za-z0-9]{3,10}" placeholder="Mfano: T123ABC">
                     </div>
                     <div class="mb-3">
-                        <label for="vehicle_model" class="form-label">Vehicle Model</label>
-                        <input type="text" class="form-control" id="vehicle_model" name="vehicle_model" required>
+                        <label for="vehicle_model" class="form-label">Modeli ya Gari (Vehicle Model)</label>
+                        <input type="text" class="form-control" id="vehicle_model" name="vehicle_model" 
+                               placeholder="Mfano: Toyota Corolla" required>
                     </div>
                     <div class="mb-3">
-                        <label for="vehicle_color" class="form-label">Vehicle Color</label>
-                        <input type="text" class="form-control" id="vehicle_color" name="vehicle_color" required>
+                        <label for="vehicle_color" class="form-label">Rangi (Vehicle Color)</label>
+                        <input type="text" class="form-control" id="vehicle_color" name="vehicle_color" 
+                               placeholder="Mfano: Nyeusi" required>
                     </div>
 
-                    <h4 class="mb-3">Driver Information</h4>
+                    <h4 class="mb-3">Taarifa za Dereva (Driver Information)</h4>
                     <div class="mb-3">
-                        <label for="driver_name" class="form-label">Driver's Name</label>
-                        <input type="text" class="form-control" id="driver_name" name="driver_name" required>
+                        <label for="driver_name" class="form-label">Jina la Dereva (Driver's Name)</label>
+                        <input type="text" class="form-control" id="driver_name" name="driver_name" 
+                               placeholder="Andika jina kamili" required>
                     </div>
                     <div class="mb-3">
-                        <label for="driver_id_type" class="form-label">ID Type</label>
+                        <label for="driver_id_type" class="form-label">Aina ya Kitambulisho (ID Type)</label>
                         <select class="form-select" id="driver_id_type" name="driver_id_type" required>
-                            <option value="national_id">National ID</option>
-                            <option value="voters_id">Voter's ID</option>
-                            <option value="passport">Passport</option>
-                            <option value="drivers_license">Driver's License</option>
+                            <option value="national_id">Kitambulisho cha Taifa</option>
+                            <option value="voters_id">Kitambulisho cha Mpiga Kura</option>
+                            <option value="passport">Pasipoti</option>
+                            <option value="drivers_license">Leseni ya Udereva</option>
                         </select>
                     </div>
                     <div class="mb-3">
-                        <label for="driver_id_number" class="form-label">ID Number</label>
-                        <input type="text" class="form-control" id="driver_id_number" name="driver_id_number" required>
+                        <label for="driver_id_number" class="form-label">Namba ya Kitambulisho (ID Number)</label>
+                        <input type="text" class="form-control" id="driver_id_number" name="driver_id_number" 
+                               placeholder="Andika namba ya kitambulisho" required>
                     </div>
                     <div class="mb-3">
-                        <label for="driver_phone" class="form-label">Phone Number</label>
+                        <label for="driver_phone" class="form-label">Namba ya Simu (Phone Number)</label>
                         <input type="tel" class="form-control" id="driver_phone" name="driver_phone" 
                                required pattern="[0-9+]{10,15}" placeholder="+255700000000">
                     </div>
                     <div class="mb-3">
-                        <label for="driver_residence" class="form-label">Street of Residence</label>
-                        <input type="text" class="form-control" id="driver_residence" name="driver_residence" required>
+                        <label for="driver_residence" class="form-label">Anwani ya Makazi (Street of Residence)</label>
+                        <input type="text" class="form-control" id="driver_residence" name="driver_residence" 
+                               placeholder="Andika mtaa unaoishi" required>
                     </div>
-                    <button type="submit" class="btn btn-primary">Check In</button>
+                    <button type="submit" class="btn btn-primary">Sajili Gari (Check In)</button>
                 </form>
             </div>
         </div>
@@ -99,16 +104,16 @@
     <div class="col-md-6 mb-4">
         <div class="card">
             <div class="card-header">
-                <h3 class="card-title mb-0">Check Out Vehicle</h3>
+                <h3 class="card-title mb-0">Toa Gari (Check Out Vehicle)</h3>
             </div>
             <div class="card-body">
                 <form id="checkOutForm" action="{{ url_for('check_out') }}" method="POST">
                     <div class="mb-3">
-                        <label for="checkOutPlateNumber" class="form-label">Plate Number</label>
+                        <label for="checkOutPlateNumber" class="form-label">Namba ya Usajili (Plate Number)</label>
                         <input type="text" class="form-control plate-number" id="checkOutPlateNumber" name="plate_number" 
-                               required pattern="[A-Za-z0-9]{3,10}" placeholder="Enter plate number">
+                               required pattern="[A-Za-z0-9]{3,10}" placeholder="Mfano: T123ABC">
                     </div>
-                    <button type="submit" class="btn btn-danger">Check Out</button>
+                    <button type="submit" class="btn btn-danger">Toa Gari (Check Out)</button>
                 </form>
             </div>
         </div>
