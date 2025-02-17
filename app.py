@@ -292,6 +292,11 @@ def edit_user(user_id):
         username = request.form.get('username')
         email = request.form.get('email')
         new_password = request.form.get('new_password')
+        phone_number = request.form.get('phone_number')
+        residence = request.form.get('residence')
+        guarantor_name = request.form.get('guarantor_name')
+        guarantor_phone = request.form.get('guarantor_phone')
+        guarantor_residence = request.form.get('guarantor_residence')
 
         # Check if username already exists for different user
         existing_user = User.query.filter_by(username=username).first()
@@ -305,8 +310,15 @@ def edit_user(user_id):
             flash('Email already registered.', 'error')
             return redirect(url_for('edit_user', user_id=user_id))
 
+        # Update all user fields
         user.username = username
         user.email = email
+        user.phone_number = phone_number
+        user.residence = residence
+        user.guarantor_name = guarantor_name
+        user.guarantor_phone = guarantor_phone
+        user.guarantor_residence = guarantor_residence
+
         if new_password:
             user.set_password(new_password)
 
@@ -316,42 +328,7 @@ def edit_user(user_id):
 
     return render_template('admin/edit_user.html', user=user)
 
-@app.route('/logout')
-@login_required
-def logout():
-    logout_user()
-    flash('Logged out successfully.', 'success')
-    return redirect(url_for('login'))
-
-# Admin routes
-@app.route('/admin')
-@login_required
-def admin_dashboard():
-    if not current_user.is_admin:
-        flash('Access denied. Admin privileges required.', 'error')
-        return redirect(url_for('dashboard'))
-
-    total_vehicles = Vehicle.query.count()
-    active_vehicles = Vehicle.query.filter_by(status='active').count()
-    spaces = ParkingSpace.query.all()
-
-    # Get today's statistics
-    today = datetime.utcnow().date()
-    today_check_ins = Vehicle.query.filter(
-        Vehicle.check_in_time >= today
-    ).count()
-    today_check_outs = Vehicle.query.filter(
-        Vehicle.check_out_time >= today,
-        Vehicle.status == 'completed'
-    ).count()
-
-    return render_template('admin/dashboard.html',
-                       total_vehicles=total_vehicles,
-                       active_vehicles=active_vehicles,
-                       spaces=spaces,
-                       today_check_ins=today_check_ins,
-                       today_check_outs=today_check_outs)
-
+# Add these new routes after the existing user management routes
 @app.route('/admin/spaces')
 @login_required
 def admin_spaces():
@@ -761,6 +738,35 @@ def admin_reports_api():
         logger.error(f"Error generating API report: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
+# Add these new routes after the existing admin routes
+@app.route('/admin')
+@login_required
+def admin_dashboard():
+    if not current_user.is_admin:
+        flash('Access denied. Admin privileges required.', 'error')
+        return redirect(url_for('dashboard'))
+
+    total_vehicles = Vehicle.query.count()
+    active_vehicles = Vehicle.query.filter_by(status='active').count()
+    spaces = ParkingSpace.query.all()
+
+    # Get today's statistics
+    today = datetime.utcnow().date()
+    today_check_ins = Vehicle.query.filter(
+        Vehicle.check_in_time >= today
+    ).count()
+    today_check_outs = Vehicle.query.filter(
+        Vehicle.check_out_time >= today,
+        Vehicle.status == 'completed'
+    ).count()
+
+    return render_template('admin/dashboard.html',
+                       total_vehicles=total_vehicles,
+                       active_vehicles=active_vehicles,
+                       spaces=spaces,
+                       today_check_ins=today_check_ins,
+                       today_check_outs=today_check_outs)
+
 # Protected routes for regular users
 @app.route('/check-in', methods=['POST'])
 @login_required
@@ -783,7 +789,7 @@ def check_in():
             return redirect(url_for('dashboard'))
 
         # Check if vehicle already exists and is active
-        existingvehicle = Vehicle.query.filter_by(
+        existing_vehicle = Vehicle.query.filter_by(
             plate_number=plate_number, 
             status='active'
         ).first()
@@ -812,6 +818,7 @@ def check_in():
         db.session.add(vehicle)
         db.session.commit()
         flash('Vehicle checked in successfully!', 'success')
+
     except Exception as e:
         logger.error(f"Error during check-in: {str(e)}")
         flash('An error occurred during check-in!', 'error')

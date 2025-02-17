@@ -2,13 +2,14 @@
 
 {% block content %}
 <div class="row justify-content-center">
-    <div class="col-md-6">
+    <div class="col-md-8 col-lg-6">
         <div class="card">
             <div class="card-header">
                 <h3 class="card-title mb-0">Edit User</h3>
             </div>
             <div class="card-body">
                 <form method="POST">
+                    <h4 class="mb-3">Personal Information</h4>
                     <div class="mb-3">
                         <label for="username" class="form-label">Username</label>
                         <input type="text" class="form-control" id="username" name="username" 
@@ -20,9 +21,37 @@
                                value="{{ user.email }}" required>
                     </div>
                     <div class="mb-3">
+                        <label for="phone_number" class="form-label">Phone Number</label>
+                        <input type="tel" class="form-control" id="phone_number" name="phone_number" 
+                               value="{{ user.phone_number }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="residence" class="form-label">Place of Residence</label>
+                        <input type="text" class="form-control" id="residence" name="residence" 
+                               value="{{ user.residence }}" required>
+                    </div>
+                    <div class="mb-3">
                         <label for="new_password" class="form-label">New Password (leave blank to keep current)</label>
                         <input type="password" class="form-control" id="new_password" name="new_password">
                     </div>
+
+                    <h4 class="mb-3 mt-4">Guarantor Information</h4>
+                    <div class="mb-3">
+                        <label for="guarantor_name" class="form-label">Guarantor Name</label>
+                        <input type="text" class="form-control" id="guarantor_name" name="guarantor_name" 
+                               value="{{ user.guarantor_name }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="guarantor_phone" class="form-label">Guarantor Phone</label>
+                        <input type="tel" class="form-control" id="guarantor_phone" name="guarantor_phone" 
+                               value="{{ user.guarantor_phone }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="guarantor_residence" class="form-label">Guarantor Residence</label>
+                        <input type="text" class="form-control" id="guarantor_residence" name="guarantor_residence" 
+                               value="{{ user.guarantor_residence }}" required>
+                    </div>
+
                     <div class="d-grid gap-2">
                         <button type="submit" class="btn btn-primary">Update User</button>
                         <a href="{{ url_for('manage_users') }}" class="btn btn-secondary">Cancel</a>
