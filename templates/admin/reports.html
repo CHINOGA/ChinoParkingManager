@@ -229,6 +229,12 @@ async function updateReports() {
         const formData = new FormData(form);
         const queryString = new URLSearchParams(formData).toString();
 
+        // Show loading state
+        document.getElementById('total-vehicles').innerHTML = '<small>Loading...</small>';
+        document.getElementById('avg-duration').innerHTML = '<small>Loading...</small>';
+        document.getElementById('total-handovers').innerHTML = '<small>Loading...</small>';
+        document.getElementById('utilization').innerHTML = '<small>Loading...</small>';
+
         const response = await fetch(`/admin/reports/api?${queryString}`);
         const data = await response.json();
 
@@ -297,58 +303,82 @@ async function updateReports() {
             }
         });
 
-        // Update vehicle table
+        // Update vehicle table with loading indicator
         const tableBody = document.getElementById('vehicleTableBody');
         tableBody.innerHTML = '';
 
-        data.vehicles.forEach(vehicle => {
-            const row = document.createElement('tr');
-            row.innerHTML = `
-                <td>
-                    <strong>${vehicle.recorded_by.username}</strong><br>
-                    <small class="text-muted">${vehicle.recorded_by.email}</small>
-                </td>
-                <td>
-                    <i class="fas fa-${vehicle.vehicle_info.type === 'motorcycle' ? 'motorcycle' : vehicle.vehicle_info.type === 'bajaj' ? 'taxi' : 'car'} me-2"></i>
-                    <span class="text-capitalize">${vehicle.vehicle_info.type}</span><br>
-                    <strong class="plate-number">${vehicle.vehicle_info.plate_number}</strong><br>
-                    Model: ${vehicle.vehicle_info.model}<br>
-                    Color: ${vehicle.vehicle_info.color}
-                </td>
-                <td>
-                    ${vehicle.driver_info.name}<br>
-                    <small class="text-muted">
-                        ${vehicle.driver_info.id_type.split('_').map(word => 
-                            word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
-                        ).join(' ')}: ${vehicle.driver_info.id_number}<br>
-                        Phone: ${vehicle.driver_info.phone}<br>
-                        Address: ${vehicle.driver_info.residence}
-                    </small>
-                </td>
-                <td>${vehicle.timing.check_in}</td>
-                <td>${vehicle.timing.check_out}</td>
-                <td>${vehicle.timing.duration} hours</td>
-                <td>
-                    <span class="badge ${vehicle.status === 'active' ? 'bg-info' : 'bg-success'}">
-                        ${vehicle.status.charAt(0).toUpperCase() + vehicle.status.slice(1)}
-                    </span>
-                </td>
-                <td>
-                    ${vehicle.handover ? `
-                        <span class="badge bg-warning">Handed Over</span><br>
-                        To: ${vehicle.handover.handler}<br>
-                        Time: ${vehicle.handover.time}<br>
-                        ${vehicle.handover.notes ? `<small class="text-muted">Note: ${vehicle.handover.notes}</small>` : ''}
-                    ` : '<span class="badge bg-secondary">No Handover</span>'}
+        if (data.vehicles.length === 0) {
+            const emptyRow = document.createElement('tr');
+            emptyRow.innerHTML = `
+                <td colspan="8" class="text-center py-4">
+                    <i class="fas fa-parking mb-3" style="font-size: 3rem;"></i>
+                    <p class="lead">No vehicle records found for the selected filters</p>
                 </td>
             `;
-            tableBody.appendChild(row);
-        });
+            tableBody.appendChild(emptyRow);
+        } else {
+            data.vehicles.forEach(vehicle => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>
+                        <strong>${vehicle.recorded_by.username}</strong><br>
+                        <small class="text-muted">${vehicle.recorded_by.email}</small>
+                    </td>
+                    <td>
+                        <i class="fas fa-${vehicle.vehicle_info.type === 'motorcycle' ? 'motorcycle' : vehicle.vehicle_info.type === 'bajaj' ? 'taxi' : 'car'} me-2"></i>
+                        <span class="text-capitalize">${vehicle.vehicle_info.type}</span><br>
+                        <strong class="plate-number">${vehicle.vehicle_info.plate_number}</strong><br>
+                        Model: ${vehicle.vehicle_info.model}<br>
+                        Color: ${vehicle.vehicle_info.color}
+                    </td>
+                    <td>
+                        ${vehicle.driver_info.name}<br>
+                        <small class="text-muted">
+                            ${vehicle.driver_info.id_type.split('_').map(word => 
+                                word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+                            ).join(' ')}: ${vehicle.driver_info.id_number}<br>
+                            Phone: ${vehicle.driver_info.phone}<br>
+                            Address: ${vehicle.driver_info.residence}
+                        </small>
+                    </td>
+                    <td>${vehicle.timing.check_in}</td>
+                    <td>${vehicle.timing.check_out}</td>
+                    <td>${vehicle.timing.duration} hours</td>
+                    <td>
+                        <span class="badge ${vehicle.status === 'active' ? 'bg-info' : 'bg-success'}">
+                            ${vehicle.status.charAt(0).toUpperCase() + vehicle.status.slice(1)}
+                        </span>
+                    </td>
+                    <td>
+                        ${vehicle.handover ? `
+                            <span class="badge bg-warning">Handed Over</span><br>
+                            To: ${vehicle.handover.handler}<br>
+                            Time: ${vehicle.handover.time}<br>
+                            ${vehicle.handover.notes ? `<small class="text-muted">Note: ${vehicle.handover.notes}</small>` : ''}
+                        ` : '<span class="badge bg-secondary">No Handover</span>'}
+                    </td>
+                `;
+                tableBody.appendChild(row);
+            });
+        }
 
     } catch (error) {
         console.error('Error updating reports:', error);
         alert('Error updating reports: ' + error.message);
     }
+}
+
+// Debounce function to prevent too many API calls
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
 }
 
 // Function to export report
@@ -363,10 +393,16 @@ function exportReport() {
 document.addEventListener('DOMContentLoaded', function() {
     const filterInputs = document.querySelectorAll('#reportFilters select, #reportFilters input');
     const form = document.getElementById('reportFilters');
+    const debouncedUpdate = debounce(updateReports, 500);
 
+    // Prevent form submission and update on filter changes
     form.addEventListener('submit', function(e) {
         e.preventDefault();
-        updateReports();
+    });
+
+    // Add change event listeners to all filter inputs
+    filterInputs.forEach(input => {
+        input.addEventListener('change', debouncedUpdate);
     });
 
     // Handle date range selection
@@ -379,6 +415,13 @@ document.addEventListener('DOMContentLoaded', function() {
         } else {
             customDateFields.forEach(field => field.classList.add('d-none'));
         }
+        debouncedUpdate();
+    });
+
+    // Add input event listener for date fields
+    const dateInputs = document.querySelectorAll('input[type="date"]');
+    dateInputs.forEach(input => {
+        input.addEventListener('input', debouncedUpdate);
     });
 
     // Show custom date fields if custom range is selected
