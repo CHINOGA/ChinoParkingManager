@@ -318,7 +318,9 @@ async function updateReports() {
                 <td>
                     ${vehicle.driver_info.name}<br>
                     <small class="text-muted">
-                        ${vehicle.driver_info.id_type.replace('_', ' ').title()}: ${vehicle.driver_info.id_number}<br>
+                        ${vehicle.driver_info.id_type.split('_').map(word => 
+                            word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+                        ).join(' ')}: ${vehicle.driver_info.id_number}<br>
                         Phone: ${vehicle.driver_info.phone}<br>
                         Address: ${vehicle.driver_info.residence}
                     </small>
