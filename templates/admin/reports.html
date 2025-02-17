@@ -17,43 +17,52 @@
             <div class="card-body">
                 <form id="reportFilters">
                     <div class="row g-3">
-                        <div class="col-md-4">
+                        <div class="col-md-3">
                             <label for="date_range" class="form-label">Date Range</label>
                             <select class="form-select" id="date_range" name="date_range">
-                                <option value="today">Today</option>
-                                <option value="yesterday">Yesterday</option>
-                                <option value="this_week">This Week</option>
-                                <option value="last_week">Last Week</option>
-                                <option value="this_month">This Month</option>
-                                <option value="custom">Custom Range</option>
+                                <option value="today" {% if date_range == 'today' %}selected{% endif %}>Today</option>
+                                <option value="yesterday" {% if date_range == 'yesterday' %}selected{% endif %}>Yesterday</option>
+                                <option value="this_week" {% if date_range == 'this_week' %}selected{% endif %}>This Week</option>
+                                <option value="last_week" {% if date_range == 'last_week' %}selected{% endif %}>Last Week</option>
+                                <option value="this_month" {% if date_range == 'this_month' %}selected{% endif %}>This Month</option>
+                                <option value="custom" {% if date_range == 'custom' %}selected{% endif %}>Custom Range</option>
                             </select>
                         </div>
-                        <div class="col-md-4 custom-date d-none">
+                        <div class="col-md-3 custom-date d-none">
                             <label for="start_date" class="form-label">Start Date</label>
-                            <input type="date" class="form-control" id="start_date" name="start_date">
+                            <input type="date" class="form-control" id="start_date" name="start_date" value="{{ start_date }}">
                         </div>
-                        <div class="col-md-4 custom-date d-none">
+                        <div class="col-md-3 custom-date d-none">
                             <label for="end_date" class="form-label">End Date</label>
-                            <input type="date" class="form-control" id="end_date" name="end_date">
+                            <input type="date" class="form-control" id="end_date" name="end_date" value="{{ end_date }}">
                         </div>
-                        <div class="col-md-4">
+                        <div class="col-md-3">
                             <label for="vehicle_type" class="form-label">Vehicle Type</label>
                             <select class="form-select" id="vehicle_type" name="vehicle_type">
-                                <option value="all">All Types</option>
-                                <option value="car">Cars</option>
-                                <option value="motorcycle">Motorcycles</option>
-                                <option value="bajaj">Bajaj</option>
+                                <option value="all" {% if vehicle_type == 'all' %}selected{% endif %}>All Types</option>
+                                <option value="car" {% if vehicle_type == 'car' %}selected{% endif %}>Cars</option>
+                                <option value="motorcycle" {% if vehicle_type == 'motorcycle' %}selected{% endif %}>Motorcycles</option>
+                                <option value="bajaj" {% if vehicle_type == 'bajaj' %}selected{% endif %}>Bajaj</option>
                             </select>
                         </div>
-                        <div class="col-md-4">
+                        <div class="col-md-3">
                             <label for="status" class="form-label">Status</label>
                             <select class="form-select" id="status" name="status">
-                                <option value="all">All Status</option>
-                                <option value="active">Active</option>
-                                <option value="completed">Completed</option>
+                                <option value="all" {% if status == 'all' %}selected{% endif %}>All Status</option>
+                                <option value="active" {% if status == 'active' %}selected{% endif %}>Active</option>
+                                <option value="completed" {% if status == 'completed' %}selected{% endif %}>Completed</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="handover_status" class="form-label">Handover Status</label>
+                            <select class="form-select" id="handover_status" name="handover_status">
+                                <option value="all" {% if handover_status == 'all' %}selected{% endif %}>All</option>
+                                <option value="handed_over" {% if handover_status == 'handed_over' %}selected{% endif %}>Handed Over</option>
+                                <option value="not_handed_over" {% if handover_status == 'not_handed_over' %}selected{% endif %}>Not Handed Over</option>
                             </select>
                         </div>
                         <div class="col-12">
+                            <button type="submit" class="btn btn-primary me-2">Apply Filters</button>
                             <a href="#" onclick="exportReport()" class="btn btn-success">Export to Excel</a>
                         </div>
                     </div>
@@ -69,26 +78,23 @@
         <div class="card">
             <div class="card-body text-center">
                 <h5 class="card-title">Total Vehicles</h5>
-                <p class="display-4" id="total-vehicles">-</p>
-                <p class="text-muted">In selected period</p>
+                <p class="display-4">{{ metrics.total_vehicles }}</p>
             </div>
         </div>
     </div>
     <div class="col-md-3">
         <div class="card">
             <div class="card-body text-center">
-                <h5 class="card-title">Average Duration</h5>
-                <p class="display-4" id="avg-duration">-</p>
-                <p class="text-muted">Per vehicle</p>
+                <h5 class="card-title">Active Handovers</h5>
+                <p class="display-4">{{ metrics.active_handovers }}</p>
             </div>
         </div>
     </div>
     <div class="col-md-3">
         <div class="card">
             <div class="card-body text-center">
-                <h5 class="card-title">Peak Hours</h5>
-                <p class="display-4" id="peak-hour">-</p>
-                <p class="text-muted">Most check-ins</p>
+                <h5 class="card-title">Total Handovers</h5>
+                <p class="display-4">{{ metrics.total_handovers }}</p>
             </div>
         </div>
     </div>
@@ -96,8 +102,7 @@
         <div class="card">
             <div class="card-body text-center">
                 <h5 class="card-title">Space Utilization</h5>
-                <p class="display-4" id="utilization">-</p>
-                <p class="text-muted">Average</p>
+                <p class="display-4">{{ "%.1f"|format(metrics.utilization) }}%</p>
             </div>
         </div>
     </div>
@@ -146,10 +151,61 @@
                                 <th>Check-out Time (EAT)</th>
                                 <th>Duration</th>
                                 <th>Status</th>
+                                <th>Handover Information</th>
                             </tr>
                         </thead>
-                        <tbody id="vehicleTableBody">
-                            <!-- Dynamic content will be loaded here -->
+                        <tbody>
+                            {% for vehicle in vehicles %}
+                            <tr>
+                                <td>
+                                    <strong>{{ vehicle.recorded_by.username }}</strong><br>
+                                    <small class="text-muted">{{ vehicle.recorded_by.email }}</small>
+                                </td>
+                                <td>
+                                    <i class="fas fa-{% if vehicle.vehicle_type == 'motorcycle' %}motorcycle{% elif vehicle.vehicle_type == 'bajaj' %}taxi{% else %}car{% endif %} me-2"></i>
+                                    <span class="text-capitalize">{{ vehicle.vehicle_type }}</span><br>
+                                    <strong class="plate-number">{{ vehicle.plate_number }}</strong><br>
+                                    Model: {{ vehicle.vehicle_model }}<br>
+                                    Color: {{ vehicle.vehicle_color }}
+                                </td>
+                                <td>
+                                    {{ vehicle.driver_name }}<br>
+                                    <small class="text-muted">
+                                        {{ vehicle.driver_id_type.replace('_', ' ').title() }}: {{ vehicle.driver_id_number }}<br>
+                                        Phone: {{ vehicle.driver_phone }}<br>
+                                        Address: {{ vehicle.driver_residence }}
+                                    </small>
+                                </td>
+                                <td>{{ vehicle.formatted_check_in_time() }}</td>
+                                <td>{{ vehicle.formatted_check_out_time() or '-' }}</td>
+                                <td>
+                                    {% if vehicle.status == 'completed' %}
+                                        {% set duration = ((vehicle.check_out_time - vehicle.check_in_time).total_seconds() / 3600)|round(1) %}
+                                        {{ duration }} hours
+                                    {% else %}
+                                        {% set duration = ((now - vehicle.check_in_time).total_seconds() / 3600)|round(1) %}
+                                        {{ duration }} hours (ongoing)
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="badge {% if vehicle.status == 'active' %}bg-info{% else %}bg-success{% endif %}">
+                                        {{ vehicle.status|title }}
+                                    </span>
+                                </td>
+                                <td>
+                                    {% if vehicle.current_handler %}
+                                        <span class="badge bg-warning">Handed Over</span><br>
+                                        To: {{ vehicle.current_handler.username }}<br>
+                                        Time: {{ vehicle.formatted_handover_time() }}<br>
+                                        {% if vehicle.handover_notes %}
+                                        <small class="text-muted">Note: {{ vehicle.handover_notes }}</small>
+                                        {% endif %}
+                                    {% else %}
+                                        <span class="badge bg-secondary">No Handover</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
                         </tbody>
                     </table>
                 </div>
@@ -188,99 +244,84 @@ async function updateReports() {
                 ? `${data.metrics.utilization.toFixed(1)}%` 
                 : '0.0%';
 
-        // Update vehicle distribution chart
-        if (vehicleDistributionChart) {
-            vehicleDistributionChart.destroy();
-        }
-        const vehicleCtx = document.getElementById('vehicleDistribution').getContext('2d');
-        vehicleDistributionChart = new Chart(vehicleCtx, {
-            type: 'pie',
-            data: {
-                labels: data.vehicle_distribution.labels,
-                datasets: [{
-                    data: data.vehicle_distribution.data,
-                    backgroundColor: [
-                        'rgba(255, 99, 132, 0.8)',
-                        'rgba(54, 162, 235, 0.8)',
-                        'rgba(255, 206, 86, 0.8)'
-                    ]
-                }]
-            },
-            options: {
-                responsive: true,
-                plugins: {
-                    legend: {
-                        position: 'bottom'
-                    }
-                }
-            }
-        });
-
-        // Update check-ins trend chart
-        if (checkInsTrendChart) {
-            checkInsTrendChart.destroy();
-        }
-        const trendCtx = document.getElementById('checkInsTrend').getContext('2d');
-        checkInsTrendChart = new Chart(trendCtx, {
-            type: 'line',
-            data: {
-                labels: data.checkins_trend.labels,
-                datasets: [{
-                    label: 'Daily Check-ins',
-                    data: data.checkins_trend.data,
-                    borderColor: 'rgb(75, 192, 192)',
-                    tension: 0.1
-                }]
-            },
-            options: {
-                responsive: true,
-                scales: {
-                    y: {
-                        beginAtZero: true
-                    }
-                }
-            }
-        });
-
-        // Update vehicle table
-        const tableBody = document.getElementById('vehicleTableBody');
-        tableBody.innerHTML = data.vehicles.map(vehicle => `
-            <tr>
-                <td>
-                    <strong>${vehicle.recorded_by.username}</strong><br>
-                    <small class="text-muted">${vehicle.recorded_by.email}</small>
-                </td>
-                <td>
-                    <i class="fas fa-${vehicle.vehicle_type === 'motorcycle' ? 'motorcycle' : vehicle.vehicle_type === 'bajaj' ? 'taxi' : 'car'} me-2"></i>
-                    <span class="text-capitalize">${vehicle.vehicle_type}</span><br>
-                    <strong class="plate-number">${vehicle.plate_number}</strong><br>
-                    Model: ${vehicle.vehicle_model}<br>
-                    Color: ${vehicle.vehicle_color}
-                </td>
-                <td>
-                    ${vehicle.driver_name}<br>
-                    <small class="text-muted">
-                        ${vehicle.driver_id_type ? vehicle.driver_id_type.replace(/_/g, ' ').split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(' ') : ''}: ${vehicle.driver_id_number}<br>
-                        Phone: ${vehicle.driver_phone}<br>
-                        Address: ${vehicle.driver_residence}
-                    </small>
-                </td>
-                <td>${vehicle.check_in_time}</td>
-                <td>${vehicle.check_out_time}</td>
-                <td>${vehicle.duration} hours${vehicle.status === 'active' ? ' (ongoing)' : ''}</td>
-                <td>
-                    <span class="badge ${vehicle.status === 'active' ? 'bg-info' : 'bg-success'}">
-                        ${vehicle.status ? vehicle.status.charAt(0).toUpperCase() + vehicle.status.slice(1) : ''}
-                    </span>
-                </td>
-            </tr>
-        `).join('');
+        // Update charts and table
+        updateCharts(data);
+        updateTable(data.vehicles);
 
     } catch (error) {
         console.error('Error updating reports:', error);
         alert('Error updating reports: ' + error.message);
     }
 }
+
+// Function to update the charts
+function updateCharts(data) {
+    // Update vehicle distribution chart
+    if (vehicleDistributionChart) {
+        vehicleDistributionChart.destroy();
+    }
+    const vehicleCtx = document.getElementById('vehicleDistribution').getContext('2d');
+    vehicleDistributionChart = new Chart(vehicleCtx, {
+        type: 'pie',
+        data: {
+            labels: data.vehicle_distribution.labels,
+            datasets: [{
+                data: data.vehicle_distribution.data,
+                backgroundColor: [
+                    'rgba(255, 99, 132, 0.8)',
+                    'rgba(54, 162, 235, 0.8)',
+                    'rgba(255, 206, 86, 0.8)'
+                ]
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }
+    });
+
+    // Update check-ins trend chart
+    if (checkInsTrendChart) {
+        checkInsTrendChart.destroy();
+    }
+    const trendCtx = document.getElementById('checkInsTrend').getContext('2d');
+    checkInsTrendChart = new Chart(trendCtx, {
+        type: 'line',
+        data: {
+            labels: data.checkins_trend.labels,
+            datasets: [{
+                label: 'Daily Check-ins',
+                data: data.checkins_trend.data,
+                borderColor: 'rgb(75, 192, 192)',
+                tension: 0.1
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+}
+
+
+function updateTable(vehicles) {
+    const tableBody = document.getElementById('vehicleTableBody');
+    tableBody.innerHTML = ''; //clear existing data
+
+    vehicles.forEach(vehicle => {
+        const row = tableBody.insertRow();
+        //rest of the code for creating table row
+    });
+}
+
 
 // Function to export report
 function exportReport() {
@@ -290,7 +331,7 @@ function exportReport() {
     window.location.href = `/admin/reports/export?${queryString}`;
 }
 
-// Set up event listeners for filter changes
+// Set up event listeners
 document.addEventListener('DOMContentLoaded', function() {
     const filterInputs = document.querySelectorAll('#reportFilters select, #reportFilters input');
     filterInputs.forEach(input => {
@@ -308,6 +349,11 @@ document.addEventListener('DOMContentLoaded', function() {
             customDateFields.forEach(field => field.classList.add('d-none'));
         }
     });
+
+    // Show custom date fields if custom range is selected
+    if (dateRange.value === 'custom') {
+        customDateFields.forEach(field => field.classList.remove('d-none'));
+    }
 
     // Initial load
     updateReports();

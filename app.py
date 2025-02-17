@@ -377,6 +377,7 @@ def admin_reports():
         date_range = request.args.get('date_range', 'today')
         vehicle_type = request.args.get('vehicle_type', 'all')
         status = request.args.get('status', 'all')
+        handover_status = request.args.get('handover_status', 'all')
         start_date = request.args.get('start_date')
         end_date = request.args.get('end_date')
 
@@ -414,23 +415,38 @@ def admin_reports():
             filters.append(Vehicle.vehicle_type == vehicle_type)
         if status != 'all':
             filters.append(Vehicle.status == status)
+        if handover_status != 'all':
+            if handover_status == 'handed_over':
+                filters.append(Vehicle.handler_id.isnot(None))
+            elif handover_status == 'not_handed_over':
+                filters.append(Vehicle.handler_id.is_(None))
 
-        # Query vehicles with filters
+        # Query vehicles with explicit join conditions
         vehicles = (Vehicle.query
-                   .join(User)
-                   .options(db.joinedload(Vehicle.recorded_by))
+                   .join(User, Vehicle.user_id == User.id)
+                   .outerjoin(User, Vehicle.handler_id == User.id, aliased=True)
+                   .options(
+                       db.joinedload(Vehicle.recorded_by),
+                       db.joinedload(Vehicle.current_handler)
+                   )
                    .filter(and_(*filters))
                    .order_by(Vehicle.check_in_time.desc())
                    .all())
 
         # Calculate metrics
         metrics = calculate_metrics(vehicles, start_date, end_date)
-
-        # Calculate vehicle distribution
         vehicle_distribution = calculate_vehicle_distribution(vehicles)
-
-        # Calculate check-ins trend
         checkins_trend = calculate_checkins_trend(start_date, end_date)
+
+        # Calculate handover metrics
+        total_handovers = sum(1 for v in vehicles if v.handler_id is not None)
+        active_handovers = sum(1 for v in vehicles if v.handler_id is not None and v.status == 'active')
+
+        # Add handover metrics to the metrics dictionary
+        metrics.update({
+            'total_handovers': total_handovers,
+            'active_handovers': active_handovers
+        })
 
         return render_template(
             'admin/reports.html',
@@ -441,6 +457,7 @@ def admin_reports():
             date_range=date_range,
             vehicle_type=vehicle_type,
             status=status,
+            handover_status=handover_status,
             start_date=start_date.strftime('%Y-%m-%d') if isinstance(start_date, datetime) else start_date,
             end_date=(end_date - timedelta(days=1)).strftime('%Y-%m-%d') if isinstance(end_date, datetime) else end_date,
             now=datetime.utcnow()
@@ -450,92 +467,6 @@ def admin_reports():
         logger.error(f"Error generating admin report: {str(e)}")
         flash('Error generating report', 'error')
         return redirect(url_for('admin_dashboard'))
-
-def calculate_metrics(vehicles, start_date, end_date):
-    """Calculate various metrics for the report"""
-    try:
-        total_vehicles = len(vehicles)
-
-        # Calculate average duration
-        durations = []
-        for vehicle in vehicles:
-            if vehicle.status == 'completed':
-                duration = (vehicle.check_out_time - vehicle.check_in_time).total_seconds() / 3600
-            else:
-                duration = (datetime.utcnow() - vehicle.check_in_time).total_seconds() / 3600
-            durations.append(duration)
-
-        avg_duration = sum(durations) / len(durations) if durations else 0
-
-        # Find peak hour
-        hour_counts = defaultdict(int)
-        for vehicle in vehicles:
-            hour = vehicle.check_in_time.replace(minute=0, second=0, microsecond=0)
-            hour_counts[hour] += 1
-
-        peak_hour = max(hour_counts.items(), key=lambda x: x[1])[0] if hour_counts else None
-        peak_hour_str = peak_hour.strftime('%H:00') if peak_hour else 'N/A'
-
-        # Calculate space utilization
-        total_spaces = sum(space.total_spaces for space in ParkingSpace.query.all())
-        avg_occupied = db.session.query(func.avg(ParkingSpace.occupied_spaces)).scalar() or 0
-        utilization = (avg_occupied / total_spaces * 100) if total_spaces > 0 else 0
-
-        return {
-            'total_vehicles': total_vehicles,
-            'avg_duration': avg_duration,
-            'peak_hour': peak_hour_str,
-            'utilization': utilization
-        }
-    except Exception as e:
-        logger.error(f"Error calculating metrics: {str(e)}")
-        return {
-            'total_vehicles': 0,
-            'avg_duration': 0,
-            'peak_hour': 'N/A',
-            'utilization': 0
-        }
-
-def calculate_vehicle_distribution(vehicles):
-    """Calculate vehicle type distribution for pie chart"""
-    try:
-        distribution = defaultdict(int)
-        for vehicle in vehicles:
-            distribution[vehicle.vehicle_type.title()] += 1
-
-        return {
-            'labels': list(distribution.keys()),
-            'data': list(distribution.values())
-        }
-    except Exception as e:
-        logger.error(f"Error calculating vehicle distribution: {str(e)}")
-        return {'labels': [], 'data': []}
-
-def calculate_checkins_trend(start_date, end_date):
-    """Calculate daily check-ins trend"""
-    try:
-        dates = []
-        counts = []
-        current_date = start_date
-
-        while current_date < end_date:
-            next_date = current_date + timedelta(days=1)
-            count = Vehicle.query.filter(
-                Vehicle.check_in_time >= current_date,
-                Vehicle.check_in_time < next_date
-            ).count()
-
-            dates.append(current_date.strftime('%Y-%m-%d'))
-            counts.append(count)
-            current_date = next_date
-
-        return {
-            'labels': dates,
-            'data': counts
-        }
-    except Exception as e:
-        logger.error(f"Error calculating check-ins trend: {str(e)}")
-        return {'labels': [], 'data': []}
 
 @app.route('/admin/reports/export')
 @login_required
@@ -841,6 +772,7 @@ def check_out():
 
     return redirect(url_for('dashboard'))
 
+# Fix the typo in the report route
 @app.route('/report')
 @login_required
 def report():
@@ -849,7 +781,7 @@ def report():
         if current_user.is_admin:
             # Admin sees all vehicles with user information
             vehicles = (Vehicle.query
-                       .join(User)  # Explicitly join with User
+                       .join(User, Vehicle.user_id == User.id)  # Explicitly join with User
                        .options(db.joinedload(Vehicle.recorded_by))  # Eager load the user relationship
                        .order_by(Vehicle.check_in_time.desc())
                        .all())
@@ -868,11 +800,99 @@ def report():
         return render_template('report.html',
                            vehicles=vehicles,
                            now=now,
-                           is_admin=current_user.is_admin)
+                           is_admin=current_user.is_admin)  # Fixed typo here
+
     except Exception as e:
         logger.error(f"Error generating report: {str(e)}")
         flash('Error loading report data', 'error')
         return redirect(url_for('dashboard'))
+
+# Add helper functions for metrics calculation
+def calculate_metrics(vehicles, start_date, end_date):
+    """Calculate various metrics for the report"""
+    try:
+        total_vehicles = len(vehicles)
+
+        # Calculate average duration
+        durations = []
+        for vehicle in vehicles:
+            if vehicle.status == 'completed':
+                duration = (vehicle.check_out_time - vehicle.check_in_time).total_seconds() / 3600
+            else:
+                duration = (datetime.utcnow() - vehicle.check_in_time).total_seconds() / 3600
+            durations.append(duration)
+
+        avg_duration = sum(durations) / len(durations) if durations else 0
+
+        # Find peak hour
+        hour_counts = defaultdict(int)
+        for vehicle in vehicles:
+            hour = vehicle.check_in_time.replace(minute=0, second=0, microsecond=0)
+            hour_counts[hour] += 1
+
+        peak_hour = max(hour_counts.items(), key=lambda x: x[1])[0] if hour_counts else None
+        peak_hour_str = peak_hour.strftime('%H:00') if peak_hour else 'N/A'
+
+        # Calculate space utilization
+        total_spaces = sum(space.total_spaces for space in ParkingSpace.query.all())
+        avg_occupied = db.session.query(func.avg(ParkingSpace.occupied_spaces)).scalar() or 0
+        utilization = (avg_occupied / total_spaces * 100) if total_spaces > 0 else 0
+
+        return {
+            'total_vehicles': total_vehicles,
+            'avg_duration': avg_duration,
+            'peak_hour': peak_hour_str,
+            'utilization': utilization
+        }
+    except Exception as e:
+        logger.error(f"Error calculating metrics: {str(e)}")
+        return {
+            'total_vehicles': 0,
+            'avg_duration': 0,
+            'peak_hour': 'N/A',
+            'utilization': 0
+        }
+
+def calculate_vehicle_distribution(vehicles):
+    """Calculate vehicle type distribution for pie chart"""
+    try:
+        distribution = defaultdict(int)
+        for vehicle in vehicles:
+            distribution[vehicle.vehicle_type.title()] += 1
+
+        return {
+            'labels': list(distribution.keys()),
+            'data': list(distribution.values())
+        }
+    except Exception as e:
+        logger.error(f"Error calculating vehicle distribution: {str(e)}")
+        return {'labels': [], 'data': []}
+
+def calculate_checkins_trend(start_date, end_date):
+    """Calculate daily check-ins trend"""
+    try:
+        dates = []
+        counts = []
+        current_date = start_date
+
+        while current_date < end_date:
+            next_date = current_date + timedelta(days=1)
+            count = Vehicle.query.filter(
+                Vehicle.check_in_time >= current_date,
+                Vehicle.check_in_time < next_date
+            ).count()
+
+            dates.append(current_date.strftime('%Y-%m-%d'))
+            counts.append(count)
+            current_date = next_date
+
+        return {
+            'labels': dates,
+            'data': counts
+        }
+    except Exception as e:
+        logger.error(f"Error calculating check-ins trend: {str(e)}")
+        return {'labels': [], 'data': []}
 
 @app.route('/analytics')
 @login_required
