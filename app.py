@@ -476,14 +476,15 @@ def export_report():
         return redirect(url_for('dashboard'))
 
     try:
-        # Get the same filters as the report
+        # Get filter parameters
         date_range = request.args.get('date_range', 'today')
         vehicle_type = request.args.get('vehicle_type', 'all')
         status = request.args.get('status', 'all')
+        handover_status = request.args.get('handover_status', 'all')
         start_date = request.args.get('start_date')
         end_date = request.args.get('end_date')
 
-        # Use the same date range logic as in admin_reports
+        # Calculate date range
         today = datetime.utcnow().date()
         if date_range == 'today':
             start_date = today
@@ -517,11 +518,20 @@ def export_report():
             filters.append(Vehicle.vehicle_type == vehicle_type)
         if status != 'all':
             filters.append(Vehicle.status == status)
+        if handover_status != 'all':
+            if handover_status == 'handed_over':
+                filters.append(Vehicle.handler_id.isnot(None))
+            elif handover_status == 'not_handed_over':
+                filters.append(Vehicle.handler_id.is_(None))
 
-        # Query vehicles with filters
+        # Create aliases for User joins
+        RecordedByUser = aliased(User)
+        HandlerUser = aliased(User)
+
+        # Query vehicles with proper aliasing
         vehicles = (Vehicle.query
-                   .join(User)
-                   .options(db.joinedload(Vehicle.recorded_by))
+                   .join(RecordedByUser, Vehicle.user_id == RecordedByUser.id)
+                   .outerjoin(HandlerUser, Vehicle.handler_id == HandlerUser.id)
                    .filter(and_(*filters))
                    .order_by(Vehicle.check_in_time.desc())
                    .all())
@@ -536,7 +546,7 @@ def export_report():
             'Vehicle Model', 'Vehicle Color', 'Driver Name', 'Driver ID Type',
             'Driver ID Number', 'Driver Phone', 'Driver Residence',
             'Check-in Time (EAT)', 'Check-out Time (EAT)', 'Duration (Hours)',
-            'Status'
+            'Status', 'Handover Status', 'Handler', 'Handover Time', 'Handover Notes'
         ])
 
         # Write data
@@ -554,30 +564,34 @@ def export_report():
                 vehicle.vehicle_model,
                 vehicle.vehicle_color,
                 vehicle.driver_name,
-                vehicle.driver_id_type,
+                vehicle.driver_id_type.replace('_', ' ').title(),
                 vehicle.driver_id_number,
                 vehicle.driver_phone,
                 vehicle.driver_residence,
                 vehicle.formatted_check_in_time(),
                 vehicle.formatted_check_out_time() or 'N/A',
                 f"{duration:.1f}",
-                vehicle.status
+                vehicle.status.title(),
+                'Handed Over' if vehicle.handler_id else 'Not Handed Over',
+                vehicle.handler.username if vehicle.handler else 'N/A',
+                vehicle.formatted_handover_time() or 'N/A',
+                vehicle.handover_notes or 'N/A'
             ])
 
         # Prepare the response
         output.seek(0)
+        filename = f'parking_report_{start_date.strftime("%Y%m%d")}_{end_date.strftime("%Y%m%d")}.csv'
         return send_file(
             io.BytesIO(output.getvalue().encode('utf-8')),
             mimetype='text/csv',
             as_attachment=True,
-            download_name=f'parking_report_{start_date.strftime("%Y%m%d")}_{end_date.strftime("%Y%m%d")}.csv'
+            download_name=filename
         )
 
     except Exception as e:
         logger.error(f"Error exporting report: {str(e)}")
         flash('Error exporting report', 'error')
         return redirect(url_for('admin_reports'))
-
 
 # Add these new routes after the existing admin routes
 @app.route('/admin/reports/api')
