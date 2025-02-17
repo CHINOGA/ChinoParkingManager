@@ -423,8 +423,8 @@ def admin_reports():
 
         # Query vehicles with explicit join conditions
         vehicles = (Vehicle.query
-                   .join(User, Vehicle.user_id == User.id)
-                   .outerjoin(User, Vehicle.handler_id == User.id, aliased=True)
+                   .join(User, Vehicle.user_id == User.id)  # Join for recorded_by
+                   .outerjoin(User, Vehicle.handler_id == User.id)  # Join for handler
                    .options(
                        db.joinedload(Vehicle.recorded_by),
                        db.joinedload(Vehicle.current_handler)
