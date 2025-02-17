@@ -180,10 +180,13 @@ async function updateReports() {
         }
 
         // Update metrics
-        document.getElementById('total-vehicles').textContent = data.metrics.total_vehicles;
-        document.getElementById('avg-duration').textContent = `${data.metrics.avg_duration.toFixed(1)}h`;
-        document.getElementById('peak-hour').textContent = data.metrics.peak_hour;
-        document.getElementById('utilization').textContent = `${data.metrics.utilization.toFixed(1)}%`;
+        document.getElementById('total-vehicles').textContent = data.metrics.total_vehicles || 0;
+        document.getElementById('avg-duration').textContent = `${(data.metrics.avg_duration || 0).toFixed(1)}h`;
+        document.getElementById('peak-hour').textContent = data.metrics.peak_hour || 'N/A';
+        document.getElementById('utilization').textContent = 
+            typeof data.metrics.utilization === 'number' 
+                ? `${data.metrics.utilization.toFixed(1)}%` 
+                : '0.0%';
 
         // Update vehicle distribution chart
         if (vehicleDistributionChart) {
