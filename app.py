@@ -7,6 +7,7 @@ from collections import defaultdict
 from flask import Flask, render_template, request, flash, redirect, url_for, send_file, jsonify
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from sqlalchemy import func, desc, and_
+from sqlalchemy.orm import aliased
 from models import db, Vehicle, ParkingSpace, User
 
 # Set up logging
@@ -421,32 +422,31 @@ def admin_reports():
             elif handover_status == 'not_handed_over':
                 filters.append(Vehicle.handler_id.is_(None))
 
-        # Query vehicles with explicit join conditions and proper aliasing
+        # Create aliases for User joins
+        RecordedByUser = aliased(User)
+        HandlerUser = aliased(User)
+
+        # Query vehicles with proper aliasing
         vehicles = (Vehicle.query
-                   .join(User, Vehicle.user_id == User.id)  # Join for recorded_by
-                   .outerjoin(User, and_(Vehicle.handler_id == User.id), from_joinpoint=True)  # Join for handler
-                   .options(
-                       db.joinedload(Vehicle.recorded_by),
-                       db.joinedload(Vehicle.current_handler)
-                   )
+                   .join(RecordedByUser, Vehicle.user_id == RecordedByUser.id)
+                   .outerjoin(HandlerUser, Vehicle.handler_id == HandlerUser.id)
                    .filter(and_(*filters))
                    .order_by(Vehicle.check_in_time.desc())
                    .all())
 
         # Calculate metrics
         metrics = calculate_metrics(vehicles, start_date, end_date)
-        vehicle_distribution = calculate_vehicle_distribution(vehicles)
-        checkins_trend = calculate_checkins_trend(start_date, end_date)
 
-        # Calculate handover metrics
+        # Add handover metrics
         total_handovers = sum(1 for v in vehicles if v.handler_id is not None)
         active_handovers = sum(1 for v in vehicles if v.handler_id is not None and v.status == 'active')
-
-        # Add handover metrics to the metrics dictionary
         metrics.update({
             'total_handovers': total_handovers,
             'active_handovers': active_handovers
         })
+
+        vehicle_distribution = calculate_vehicle_distribution(vehicles)
+        checkins_trend = calculate_checkins_trend(start_date, end_date)
 
         return render_template(
             'admin/reports.html',
@@ -781,26 +781,23 @@ def report():
         if current_user.is_admin:
             # Admin sees all vehicles with user information
             vehicles = (Vehicle.query
-                       .join(User, Vehicle.user_id == User.id)  # Explicitly join with User
-                       .options(db.joinedload(Vehicle.recorded_by))  # Eager load the user relationship
+                       .join(User, Vehicle.user_id == User.id)
+                       .options(db.joinedload(Vehicle.recorded_by))
                        .order_by(Vehicle.check_in_time.desc())
                        .all())
             logger.info(f"Admin report: Found {len(vehicles)} vehicles")
         else:
             # Regular users only see their vehicles
             vehicles = (Vehicle.query
-                       .filter_by(userid=current_user.id)
+                       .filter_by(user_id=current_user.id)  # Fixed userid to user_id
                        .order_by(Vehicle.check_in_time.desc())
                        .all())
             logger.info(f"User report: Found {len(vehicles)} vehicles for user {current_user.username}")
 
-        # Pass current time for duration calculations of active parkings
-        now = datetime.utcnow()
-
         return render_template('report.html',
                            vehicles=vehicles,
-                           now=now,
-                           is_admin=current_user.is_admin)  # Fixed typo here
+                           now=datetime.utcnow(),
+                           is_admin=current_user.is_admin)
 
     except Exception as e:
         logger.error(f"Error generating report: {str(e)}")
