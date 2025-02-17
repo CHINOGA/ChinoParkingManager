@@ -191,6 +191,14 @@ def register():
 
     return render_template('auth/register.html')
 
+# Logout route added here
+@app.route('/logout')
+@login_required
+def logout():
+    logout_user()
+    flash('Logged out successfully.', 'success')
+    return redirect(url_for('login'))
+
 # Add these new routes for user management
 @app.route('/admin/users')
 @login_required
@@ -279,6 +287,7 @@ def delete_user(user_id):
         flash(f'User {user.username} has been deleted.', 'success')
     return redirect(url_for('manage_users'))
 
+# Edited edit_user route with error handling
 @app.route('/admin/users/<int:user_id>/edit', methods=['GET', 'POST'])
 @login_required
 def edit_user(user_id):
@@ -286,47 +295,54 @@ def edit_user(user_id):
         flash('Access denied. Admin privileges required.', 'error')
         return redirect(url_for('dashboard'))
 
-    user = User.query.get_or_404(user_id)
+    try:
+        user = User.query.get_or_404(user_id)
 
-    if request.method == 'POST':
-        username = request.form.get('username')
-        email = request.form.get('email')
-        new_password = request.form.get('new_password')
-        phone_number = request.form.get('phone_number')
-        residence = request.form.get('residence')
-        guarantor_name = request.form.get('guarantor_name')
-        guarantor_phone = request.form.get('guarantor_phone')
-        guarantor_residence = request.form.get('guarantor_residence')
+        if request.method == 'POST':
+            username = request.form.get('username')
+            email = request.form.get('email')
+            new_password = request.form.get('new_password')
+            phone_number = request.form.get('phone_number')
+            residence = request.form.get('residence')
+            guarantor_name = request.form.get('guarantor_name')
+            guarantor_phone = request.form.get('guarantor_phone')
+            guarantor_residence = request.form.get('guarantor_residence')
 
-        # Check if username already exists for different user
-        existing_user = User.query.filter_by(username=username).first()
-        if existing_user and existing_user.id != user_id:
-            flash('Username already exists.', 'error')
-            return redirect(url_for('edit_user', user_id=user_id))
+            # Check if username already exists for different user
+            existing_user = User.query.filter_by(username=username).first()
+            if existing_user and existing_user.id != user_id:
+                flash('Username already exists.', 'error')
+                return redirect(url_for('edit_user', user_id=user_id))
 
-        # Check if email already exists for different user
-        existing_user = User.query.filter_by(email=email).first()
-        if existing_user and existing_user.id != user_id:
-            flash('Email already registered.', 'error')
-            return redirect(url_for('edit_user', user_id=user_id))
+            # Check if email already exists for different user
+            existing_user = User.query.filter_by(email=email).first()
+            if existing_user and existing_user.id != user_id:
+                flash('Email already registered.', 'error')
+                return redirect(url_for('edit_user', user_id=user_id))
 
-        # Update all user fields
-        user.username = username
-        user.email = email
-        user.phone_number = phone_number
-        user.residence = residence
-        user.guarantor_name = guarantor_name
-        user.guarantor_phone = guarantor_phone
-        user.guarantor_residence = guarantor_residence
+            # Update all user fields
+            user.username = username
+            user.email = email
+            user.phone_number = phone_number
+            user.residence = residence
+            user.guarantor_name = guarantor_name
+            user.guarantor_phone = guarantor_phone
+            user.guarantor_residence = guarantor_residence
 
-        if new_password:
-            user.set_password(new_password)
+            if new_password:
+                user.set_password(new_password)
 
-        db.session.commit()
-        flash('User details updated successfully.', 'success')
+            db.session.commit()
+            flash('User details updated successfully.', 'success')
+            return redirect(url_for('manage_users'))
+
+        return render_template('admin/edit_user.html', user=user)
+
+    except Exception as e:
+        logger.error(f"Error editing user {user_id}: {str(e)}")
+        db.session.rollback()
+        flash('An error occurred while editing the user.', 'error')
         return redirect(url_for('manage_users'))
-
-    return render_template('admin/edit_user.html', user=user)
 
 # Add these new routes after the existing user management routes
 @app.route('/admin/spaces')
