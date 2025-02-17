@@ -16,8 +16,8 @@ class User(UserMixin, db.Model):
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     last_login = db.Column(db.DateTime)
-    # Add cascade delete for vehicles with passive_deletes
-    vehicles = db.relationship('Vehicle', backref='user', lazy=True, 
+    # Update relationship definition to match Vehicle model
+    vehicles = db.relationship('Vehicle', back_populates='user', lazy='dynamic',
                              cascade='all, delete-orphan', passive_deletes=True)
 
     def set_password(self, password):
@@ -54,6 +54,8 @@ class Vehicle(db.Model):
     check_out_time = db.Column(db.DateTime, nullable=True)
     status = db.Column(db.String(20), default='active')  # active, completed
     user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
+    # Explicitly define the relationship with User
+    user = db.relationship('User', back_populates='vehicles')
 
     def __repr__(self):
         return f'<Vehicle {self.plate_number}>'

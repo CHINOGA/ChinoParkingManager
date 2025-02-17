@@ -454,7 +454,7 @@ def check_out():
 def report():
     # Get vehicles based on user role
     if current_user.is_admin:
-        # Admin sees all vehicles
+        # Admin sees all vehicles with user information
         vehicles = Vehicle.query.join(User).order_by(
             Vehicle.check_in_time.desc()
         ).all()
