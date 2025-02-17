@@ -1,9 +1,12 @@
 import os
 import logging
+import io
+import csv
 from datetime import datetime, timedelta
-from flask import Flask, render_template, request, flash, redirect, url_for
+from collections import defaultdict
+from flask import Flask, render_template, request, flash, redirect, url_for, send_file
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
-from sqlalchemy import func, desc
+from sqlalchemy import func, desc, and_
 from models import db, Vehicle, ParkingSpace, User
 
 # Set up logging
@@ -360,6 +363,290 @@ def update_spaces():
         logger.error(f"Error updating parking spaces: {str(e)}")
 
     return redirect(url_for('admin_spaces'))
+
+# Add these new routes after the existing admin routes
+@app.route('/admin/reports')
+@login_required
+def admin_reports():
+    if not current_user.is_admin:
+        flash('Access denied. Admin privileges required.', 'error')
+        return redirect(url_for('dashboard'))
+
+    try:
+        # Get filter parameters
+        date_range = request.args.get('date_range', 'today')
+        vehicle_type = request.args.get('vehicle_type', 'all')
+        status = request.args.get('status', 'all')
+        start_date = request.args.get('start_date')
+        end_date = request.args.get('end_date')
+
+        # Calculate date range
+        today = datetime.utcnow().date()
+        if date_range == 'today':
+            start_date = today
+            end_date = today + timedelta(days=1)
+        elif date_range == 'yesterday':
+            start_date = today - timedelta(days=1)
+            end_date = today
+        elif date_range == 'this_week':
+            start_date = today - timedelta(days=today.weekday())
+            end_date = start_date + timedelta(days=7)
+        elif date_range == 'last_week':
+            start_date = today - timedelta(days=today.weekday() + 7)
+            end_date = start_date + timedelta(days=7)
+        elif date_range == 'this_month':
+            start_date = today.replace(day=1)
+            end_date = (today.replace(day=1) + timedelta(days=32)).replace(day=1)
+        elif date_range == 'custom':
+            if not start_date or not end_date:
+                flash('Please select both start and end dates for custom range', 'warning')
+                return redirect(url_for('admin_reports'))
+            start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
+            end_date = datetime.strptime(end_date, '%Y-%m-%d').date() + timedelta(days=1)
+
+        # Build query filters
+        filters = [
+            Vehicle.check_in_time >= start_date,
+            Vehicle.check_in_time < end_date
+        ]
+
+        if vehicle_type != 'all':
+            filters.append(Vehicle.vehicle_type == vehicle_type)
+        if status != 'all':
+            filters.append(Vehicle.status == status)
+
+        # Query vehicles with filters
+        vehicles = (Vehicle.query
+                   .join(User)
+                   .options(db.joinedload(Vehicle.recorded_by))
+                   .filter(and_(*filters))
+                   .order_by(Vehicle.check_in_time.desc())
+                   .all())
+
+        # Calculate metrics
+        metrics = calculate_metrics(vehicles, start_date, end_date)
+
+        # Calculate vehicle distribution
+        vehicle_distribution = calculate_vehicle_distribution(vehicles)
+
+        # Calculate check-ins trend
+        checkins_trend = calculate_checkins_trend(start_date, end_date)
+
+        return render_template(
+            'admin/reports.html',
+            vehicles=vehicles,
+            metrics=metrics,
+            vehicle_distribution=vehicle_distribution,
+            checkins_trend=checkins_trend,
+            date_range=date_range,
+            vehicle_type=vehicle_type,
+            status=status,
+            start_date=start_date.strftime('%Y-%m-%d') if isinstance(start_date, datetime) else start_date,
+            end_date=(end_date - timedelta(days=1)).strftime('%Y-%m-%d') if isinstance(end_date, datetime) else end_date,
+            now=datetime.utcnow()
+        )
+
+    except Exception as e:
+        logger.error(f"Error generating admin report: {str(e)}")
+        flash('Error generating report', 'error')
+        return redirect(url_for('admin_dashboard'))
+
+def calculate_metrics(vehicles, start_date, end_date):
+    """Calculate various metrics for the report"""
+    try:
+        total_vehicles = len(vehicles)
+
+        # Calculate average duration
+        durations = []
+        for vehicle in vehicles:
+            if vehicle.status == 'completed':
+                duration = (vehicle.check_out_time - vehicle.check_in_time).total_seconds() / 3600
+            else:
+                duration = (datetime.utcnow() - vehicle.check_in_time).total_seconds() / 3600
+            durations.append(duration)
+
+        avg_duration = sum(durations) / len(durations) if durations else 0
+
+        # Find peak hour
+        hour_counts = defaultdict(int)
+        for vehicle in vehicles:
+            hour = vehicle.check_in_time.replace(minute=0, second=0, microsecond=0)
+            hour_counts[hour] += 1
+
+        peak_hour = max(hour_counts.items(), key=lambda x: x[1])[0] if hour_counts else None
+        peak_hour_str = peak_hour.strftime('%H:00') if peak_hour else 'N/A'
+
+        # Calculate space utilization
+        total_spaces = sum(space.total_spaces for space in ParkingSpace.query.all())
+        avg_occupied = db.session.query(func.avg(ParkingSpace.occupied_spaces)).scalar() or 0
+        utilization = (avg_occupied / total_spaces * 100) if total_spaces > 0 else 0
+
+        return {
+            'total_vehicles': total_vehicles,
+            'avg_duration': avg_duration,
+            'peak_hour': peak_hour_str,
+            'utilization': utilization
+        }
+    except Exception as e:
+        logger.error(f"Error calculating metrics: {str(e)}")
+        return {
+            'total_vehicles': 0,
+            'avg_duration': 0,
+            'peak_hour': 'N/A',
+            'utilization': 0
+        }
+
+def calculate_vehicle_distribution(vehicles):
+    """Calculate vehicle type distribution for pie chart"""
+    try:
+        distribution = defaultdict(int)
+        for vehicle in vehicles:
+            distribution[vehicle.vehicle_type.title()] += 1
+
+        return {
+            'labels': list(distribution.keys()),
+            'data': list(distribution.values())
+        }
+    except Exception as e:
+        logger.error(f"Error calculating vehicle distribution: {str(e)}")
+        return {'labels': [], 'data': []}
+
+def calculate_checkins_trend(start_date, end_date):
+    """Calculate daily check-ins trend"""
+    try:
+        dates = []
+        counts = []
+        current_date = start_date
+
+        while current_date < end_date:
+            next_date = current_date + timedelta(days=1)
+            count = Vehicle.query.filter(
+                Vehicle.check_in_time >= current_date,
+                Vehicle.check_in_time < next_date
+            ).count()
+
+            dates.append(current_date.strftime('%Y-%m-%d'))
+            counts.append(count)
+            current_date = next_date
+
+        return {
+            'labels': dates,
+            'data': counts
+        }
+    except Exception as e:
+        logger.error(f"Error calculating check-ins trend: {str(e)}")
+        return {'labels': [], 'data': []}
+
+@app.route('/admin/reports/export')
+@login_required
+def export_report():
+    if not current_user.is_admin:
+        flash('Access denied. Admin privileges required.', 'error')
+        return redirect(url_for('dashboard'))
+
+    try:
+        # Get the same filters as the report
+        date_range = request.args.get('date_range', 'today')
+        vehicle_type = request.args.get('vehicle_type', 'all')
+        status = request.args.get('status', 'all')
+        start_date = request.args.get('start_date')
+        end_date = request.args.get('end_date')
+
+        # Use the same date range logic as in admin_reports
+        today = datetime.utcnow().date()
+        if date_range == 'today':
+            start_date = today
+            end_date = today + timedelta(days=1)
+        elif date_range == 'yesterday':
+            start_date = today - timedelta(days=1)
+            end_date = today
+        elif date_range == 'this_week':
+            start_date = today - timedelta(days=today.weekday())
+            end_date = start_date + timedelta(days=7)
+        elif date_range == 'last_week':
+            start_date = today - timedelta(days=today.weekday() + 7)
+            end_date = start_date + timedelta(days=7)
+        elif date_range == 'this_month':
+            start_date = today.replace(day=1)
+            end_date = (today.replace(day=1) + timedelta(days=32)).replace(day=1)
+        elif date_range == 'custom':
+            if not start_date or not end_date:
+                flash('Please select both start and end dates for custom range', 'warning')
+                return redirect(url_for('admin_reports'))
+            start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
+            end_date = datetime.strptime(end_date, '%Y-%m-%d').date() + timedelta(days=1)
+
+        # Build query filters
+        filters = [
+            Vehicle.check_in_time >= start_date,
+            Vehicle.check_in_time < end_date
+        ]
+
+        if vehicle_type != 'all':
+            filters.append(Vehicle.vehicle_type == vehicle_type)
+        if status != 'all':
+            filters.append(Vehicle.status == status)
+
+        # Query vehicles with filters
+        vehicles = (Vehicle.query
+                   .join(User)
+                   .options(db.joinedload(Vehicle.recorded_by))
+                   .filter(and_(*filters))
+                   .order_by(Vehicle.check_in_time.desc())
+                   .all())
+
+        # Create CSV file
+        output = io.StringIO()
+        writer = csv.writer(output)
+
+        # Write headers
+        writer.writerow([
+            'Recorded By', 'Email', 'Vehicle Type', 'Plate Number',
+            'Vehicle Model', 'Vehicle Color', 'Driver Name', 'Driver ID Type',
+            'Driver ID Number', 'Driver Phone', 'Driver Residence',
+            'Check-in Time (EAT)', 'Check-out Time (EAT)', 'Duration (Hours)',
+            'Status'
+        ])
+
+        # Write data
+        for vehicle in vehicles:
+            if vehicle.status == 'completed':
+                duration = (vehicle.check_out_time - vehicle.check_in_time).total_seconds() / 3600
+            else:
+                duration = (datetime.utcnow() - vehicle.check_in_time).total_seconds() / 3600
+
+            writer.writerow([
+                vehicle.recorded_by.username,
+                vehicle.recorded_by.email,
+                vehicle.vehicle_type,
+                vehicle.plate_number,
+                vehicle.vehicle_model,
+                vehicle.vehicle_color,
+                vehicle.driver_name,
+                vehicle.driver_id_type,
+                vehicle.driver_id_number,
+                vehicle.driver_phone,
+                vehicle.driver_residence,
+                vehicle.formatted_check_in_time(),
+                vehicle.formatted_check_out_time() or 'N/A',
+                f"{duration:.1f}",
+                vehicle.status
+            ])
+
+        # Prepare the response
+        output.seek(0)
+        return send_file(
+            io.BytesIO(output.getvalue().encode('utf-8')),
+            mimetype='text/csv',
+            as_attachment=True,
+            download_name=f'parking_report_{start_date.strftime("%Y%m%d")}_{end_date.strftime("%Y%m%d")}.csv'
+        )
+
+    except Exception as e:
+        logger.error(f"Error exporting report: {str(e)}")
+        flash('Error exporting report', 'error')
+        return redirect(url_for('admin_reports'))
+
 
 # Protected routes for regular users
 @app.route('/check-in', methods=['POST'])
