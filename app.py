@@ -646,9 +646,6 @@ def admin_reports_api():
                    .order_by(Vehicle.check_in_time.desc())
                    .all())
 
-        # Calculate metrics
-        metrics = calculate_metrics(vehicles, start_date, end_date)
-
         # Format vehicle data
         vehicle_data = []
         for vehicle in vehicles:
@@ -656,6 +653,14 @@ def admin_reports_api():
                 duration = (vehicle.check_out_time - vehicle.check_in_time).total_seconds() / 3600
             else:
                 duration = (datetime.utcnow() - vehicle.check_in_time).total_seconds() / 3600
+
+            handover_info = None
+            if vehicle.handler:
+                handover_info = {
+                    'handler': vehicle.handler.username,
+                    'time': vehicle.formatted_handover_time(),
+                    'notes': vehicle.handover_notes
+                }
 
             vehicle_data.append({
                 'recorded_by': {
@@ -681,12 +686,11 @@ def admin_reports_api():
                     'duration': f"{duration:.1f}"
                 },
                 'status': vehicle.status,
-                'handover': {
-                    'handler': vehicle.handler.username if vehicle.handler else None,
-                    'time': vehicle.formatted_handover_time() if vehicle.handover_time else None,
-                    'notes': vehicle.handover_notes
-                } if vehicle.handler else None
+                'handover': handover_info
             })
+
+        # Calculate metrics
+        metrics = calculate_metrics(vehicles, start_date, end_date)
 
         # Calculate vehicle distribution
         distribution = defaultdict(int)

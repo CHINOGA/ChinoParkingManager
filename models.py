@@ -24,7 +24,7 @@ class User(UserMixin, db.Model):
     # Add relationship for vehicles handed over to this user
     handled_vehicles = db.relationship('Vehicle', 
                                    foreign_keys='Vehicle.handler_id',
-                                   backref='current_handler',
+                                   backref='handler',
                                    lazy='dynamic')
 
     def set_password(self, password):
