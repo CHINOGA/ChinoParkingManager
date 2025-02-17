@@ -19,6 +19,9 @@
                     <table class="table table-hover">
                         <thead>
                             <tr>
+                                {% if is_admin %}
+                                <th>Recorded By</th>
+                                {% endif %}
                                 <th>Vehicle Information</th>
                                 <th>Driver Information</th>
                                 <th>Check-in Time (EAT)</th>
@@ -30,6 +33,12 @@
                         <tbody>
                             {% for vehicle in vehicles %}
                             <tr>
+                                {% if is_admin %}
+                                <td>
+                                    <strong>{{ vehicle.user.username }}</strong><br>
+                                    <small class="text-muted">{{ vehicle.user.email }}</small>
+                                </td>
+                                {% endif %}
                                 <td>
                                     <i class="fas fa-{% if vehicle.vehicle_type == 'motorcycle' %}motorcycle{% elif vehicle.vehicle_type == 'bajaj' %}taxi{% else %}car{% endif %} me-2"></i>
                                     <span class="text-capitalize">{{ vehicle.vehicle_type }}</span><br>
