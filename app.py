@@ -4,7 +4,7 @@ import io
 import csv
 from datetime import datetime, timedelta
 from collections import defaultdict
-from flask import Flask, render_template, request, flash, redirect, url_for, send_file
+from flask import Flask, render_template, request, flash, redirect, url_for, send_file, jsonify
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from sqlalchemy import func, desc, and_
 from models import db, Vehicle, ParkingSpace, User
@@ -647,6 +647,107 @@ def export_report():
         flash('Error exporting report', 'error')
         return redirect(url_for('admin_reports'))
 
+
+# Add these new routes after the existing admin routes
+@app.route('/admin/reports/api')
+@login_required
+def admin_reports_api():
+    if not current_user.is_admin:
+        return jsonify({'error': 'Access denied'}), 403
+
+    try:
+        # Get filter parameters
+        date_range = request.args.get('date_range', 'today')
+        vehicle_type = request.args.get('vehicle_type', 'all')
+        status = request.args.get('status', 'all')
+        start_date = request.args.get('start_date')
+        end_date = request.args.get('end_date')
+
+        # Calculate date range
+        today = datetime.utcnow().date()
+        if date_range == 'today':
+            start_date = today
+            end_date = today + timedelta(days=1)
+        elif date_range == 'yesterday':
+            start_date = today - timedelta(days=1)
+            end_date = today
+        elif date_range == 'this_week':
+            start_date = today - timedelta(days=today.weekday())
+            end_date = start_date + timedelta(days=7)
+        elif date_range == 'last_week':
+            start_date = today - timedelta(days=today.weekday() + 7)
+            end_date = start_date + timedelta(days=7)
+        elif date_range == 'this_month':
+            start_date = today.replace(day=1)
+            end_date = (today.replace(day=1) + timedelta(days=32)).replace(day=1)
+        elif date_range == 'custom':
+            if not start_date or not end_date:
+                return jsonify({'error': 'Invalid date range'}), 400
+            start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
+            end_date = datetime.strptime(end_date, '%Y-%m-%d').date() + timedelta(days=1)
+
+        # Build query filters
+        filters = [
+            Vehicle.check_in_time >= start_date,
+            Vehicle.check_in_time < end_date
+        ]
+
+        if vehicle_type != 'all':
+            filters.append(Vehicle.vehicle_type == vehicle_type)
+        if status != 'all':
+            filters.append(Vehicle.status == status)
+
+        # Query vehicles with filters
+        vehicles = (Vehicle.query
+                   .join(User)
+                   .options(db.joinedload(Vehicle.recorded_by))
+                   .filter(and_(*filters))
+                   .order_by(Vehicle.check_in_time.desc())
+                   .all())
+
+        # Calculate metrics
+        metrics = calculate_metrics(vehicles, start_date, end_date)
+        vehicle_distribution = calculate_vehicle_distribution(vehicles)
+        checkins_trend = calculate_checkins_trend(start_date, end_date)
+
+        # Format vehicle data
+        vehicle_data = []
+        for vehicle in vehicles:
+            if vehicle.status == 'completed':
+                duration = (vehicle.check_out_time - vehicle.check_in_time).total_seconds() / 3600
+            else:
+                duration = (datetime.utcnow() - vehicle.check_in_time).total_seconds() / 3600
+
+            vehicle_data.append({
+                'recorded_by': {
+                    'username': vehicle.recorded_by.username,
+                    'email': vehicle.recorded_by.email
+                },
+                'vehicle_type': vehicle.vehicle_type,
+                'plate_number': vehicle.plate_number,
+                'vehicle_model': vehicle.vehicle_model,
+                'vehicle_color': vehicle.vehicle_color,
+                'driver_name': vehicle.driver_name,
+                'driver_id_type': vehicle.driver_id_type,
+                'driver_id_number': vehicle.driver_id_number,
+                'driver_phone': vehicle.driver_phone,
+                'driver_residence': vehicle.driver_residence,
+                'check_in_time': vehicle.formatted_check_in_time(),
+                'check_out_time': vehicle.formatted_check_out_time() or '-',
+                'duration': f"{duration:.1f}",
+                'status': vehicle.status
+            })
+
+        return jsonify({
+            'vehicles': vehicle_data,
+            'metrics': metrics,
+            'vehicle_distribution': vehicle_distribution,
+            'checkins_trend': checkins_trend
+        })
+
+    except Exception as e:
+        logger.error(f"Error generating API report: {str(e)}")
+        return jsonify({'error': 'Error generating report'}), 500
 
 # Protected routes for regular users
 @app.route('/check-in', methods=['POST'])

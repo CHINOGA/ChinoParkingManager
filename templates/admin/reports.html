@@ -15,50 +15,46 @@
                 <h3 class="card-title mb-0">Report Filters</h3>
             </div>
             <div class="card-body">
-                <form method="GET" action="{{ url_for('admin_reports') }}" id="reportFilters">
+                <form id="reportFilters">
                     <div class="row g-3">
                         <div class="col-md-4">
                             <label for="date_range" class="form-label">Date Range</label>
                             <select class="form-select" id="date_range" name="date_range">
-                                <option value="today" {% if date_range == 'today' %}selected{% endif %}>Today</option>
-                                <option value="yesterday" {% if date_range == 'yesterday' %}selected{% endif %}>Yesterday</option>
-                                <option value="this_week" {% if date_range == 'this_week' %}selected{% endif %}>This Week</option>
-                                <option value="last_week" {% if date_range == 'last_week' %}selected{% endif %}>Last Week</option>
-                                <option value="this_month" {% if date_range == 'this_month' %}selected{% endif %}>This Month</option>
-                                <option value="custom" {% if date_range == 'custom' %}selected{% endif %}>Custom Range</option>
+                                <option value="today">Today</option>
+                                <option value="yesterday">Yesterday</option>
+                                <option value="this_week">This Week</option>
+                                <option value="last_week">Last Week</option>
+                                <option value="this_month">This Month</option>
+                                <option value="custom">Custom Range</option>
                             </select>
                         </div>
-                        <div class="col-md-4 custom-date {% if date_range != 'custom' %}d-none{% endif %}">
+                        <div class="col-md-4 custom-date d-none">
                             <label for="start_date" class="form-label">Start Date</label>
-                            <input type="date" class="form-control" id="start_date" name="start_date" 
-                                   value="{{ start_date if start_date }}">
+                            <input type="date" class="form-control" id="start_date" name="start_date">
                         </div>
-                        <div class="col-md-4 custom-date {% if date_range != 'custom' %}d-none{% endif %}">
+                        <div class="col-md-4 custom-date d-none">
                             <label for="end_date" class="form-label">End Date</label>
-                            <input type="date" class="form-control" id="end_date" name="end_date" 
-                                   value="{{ end_date if end_date }}">
+                            <input type="date" class="form-control" id="end_date" name="end_date">
                         </div>
                         <div class="col-md-4">
                             <label for="vehicle_type" class="form-label">Vehicle Type</label>
                             <select class="form-select" id="vehicle_type" name="vehicle_type">
-                                <option value="all" {% if vehicle_type == 'all' %}selected{% endif %}>All Types</option>
-                                <option value="car" {% if vehicle_type == 'car' %}selected{% endif %}>Cars</option>
-                                <option value="motorcycle" {% if vehicle_type == 'motorcycle' %}selected{% endif %}>Motorcycles</option>
-                                <option value="bajaj" {% if vehicle_type == 'bajaj' %}selected{% endif %}>Bajaj</option>
+                                <option value="all">All Types</option>
+                                <option value="car">Cars</option>
+                                <option value="motorcycle">Motorcycles</option>
+                                <option value="bajaj">Bajaj</option>
                             </select>
                         </div>
                         <div class="col-md-4">
                             <label for="status" class="form-label">Status</label>
                             <select class="form-select" id="status" name="status">
-                                <option value="all" {% if status == 'all' %}selected{% endif %}>All Status</option>
-                                <option value="active" {% if status == 'active' %}selected{% endif %}>Active</option>
-                                <option value="completed" {% if status == 'completed' %}selected{% endif %}>Completed</option>
+                                <option value="all">All Status</option>
+                                <option value="active">Active</option>
+                                <option value="completed">Completed</option>
                             </select>
                         </div>
                         <div class="col-12">
-                            <button type="submit" class="btn btn-primary">Apply Filters</button>
-                            <a href="{{ url_for('export_report') }}?{{ request.query_string.decode() }}" 
-                               class="btn btn-success">Export to Excel</a>
+                            <a href="#" onclick="exportReport()" class="btn btn-success">Export to Excel</a>
                         </div>
                     </div>
                 </form>
@@ -73,7 +69,7 @@
         <div class="card">
             <div class="card-body text-center">
                 <h5 class="card-title">Total Vehicles</h5>
-                <p class="display-4">{{ metrics.total_vehicles }}</p>
+                <p class="display-4" id="total-vehicles">-</p>
                 <p class="text-muted">In selected period</p>
             </div>
         </div>
@@ -82,7 +78,7 @@
         <div class="card">
             <div class="card-body text-center">
                 <h5 class="card-title">Average Duration</h5>
-                <p class="display-4">{{ "%.1f"|format(metrics.avg_duration) }}h</p>
+                <p class="display-4" id="avg-duration">-</p>
                 <p class="text-muted">Per vehicle</p>
             </div>
         </div>
@@ -91,7 +87,7 @@
         <div class="card">
             <div class="card-body text-center">
                 <h5 class="card-title">Peak Hours</h5>
-                <p class="display-4">{{ metrics.peak_hour }}</p>
+                <p class="display-4" id="peak-hour">-</p>
                 <p class="text-muted">Most check-ins</p>
             </div>
         </div>
@@ -100,7 +96,7 @@
         <div class="card">
             <div class="card-body text-center">
                 <h5 class="card-title">Space Utilization</h5>
-                <p class="display-4">{{ "%.1f"|format(metrics.utilization) }}%</p>
+                <p class="display-4" id="utilization">-</p>
                 <p class="text-muted">Average</p>
             </div>
         </div>
@@ -152,46 +148,8 @@
                                 <th>Status</th>
                             </tr>
                         </thead>
-                        <tbody>
-                            {% for vehicle in vehicles %}
-                            <tr>
-                                <td>
-                                    <strong>{{ vehicle.recorded_by.username }}</strong><br>
-                                    <small class="text-muted">{{ vehicle.recorded_by.email }}</small>
-                                </td>
-                                <td>
-                                    <i class="fas fa-{% if vehicle.vehicle_type == 'motorcycle' %}motorcycle{% elif vehicle.vehicle_type == 'bajaj' %}taxi{% else %}car{% endif %} me-2"></i>
-                                    <span class="text-capitalize">{{ vehicle.vehicle_type }}</span><br>
-                                    <strong class="plate-number">{{ vehicle.plate_number }}</strong><br>
-                                    Model: {{ vehicle.vehicle_model }}<br>
-                                    Color: {{ vehicle.vehicle_color }}
-                                </td>
-                                <td>
-                                    {{ vehicle.driver_name }}<br>
-                                    <small class="text-muted">
-                                        {{ vehicle.driver_id_type.replace('_', ' ').title() }}: {{ vehicle.driver_id_number }}<br>
-                                        Phone: {{ vehicle.driver_phone }}<br>
-                                        Address: {{ vehicle.driver_residence }}
-                                    </small>
-                                </td>
-                                <td>{{ vehicle.formatted_check_in_time() }}</td>
-                                <td>{{ vehicle.formatted_check_out_time() or '-' }}</td>
-                                <td>
-                                    {% if vehicle.status == 'completed' %}
-                                        {% set duration = ((vehicle.check_out_time - vehicle.check_in_time).total_seconds() / 3600)|round(1) %}
-                                        {{ duration }} hours
-                                    {% else %}
-                                        {% set duration = ((now - vehicle.check_in_time).total_seconds() / 3600)|round(1) %}
-                                        {{ duration }} hours (ongoing)
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    <span class="badge {% if vehicle.status == 'active' %}bg-info{% else %}bg-success{% endif %}">
-                                        {{ vehicle.status|title }}
-                                    </span>
-                                </td>
-                            </tr>
-                            {% endfor %}
+                        <tbody id="vehicleTableBody">
+                            <!-- Dynamic content will be loaded here -->
                         </tbody>
                     </table>
                 </div>
@@ -204,11 +162,142 @@
 {% block scripts %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
+let vehicleDistributionChart = null;
+let checkInsTrendChart = null;
+
+// Function to update the reports data
+async function updateReports() {
+    try {
+        const form = document.getElementById('reportFilters');
+        const formData = new FormData(form);
+        const queryString = new URLSearchParams(formData).toString();
+
+        const response = await fetch(`/admin/reports/api?${queryString}`);
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.error || 'Failed to fetch report data');
+        }
+
+        // Update metrics
+        document.getElementById('total-vehicles').textContent = data.metrics.total_vehicles;
+        document.getElementById('avg-duration').textContent = `${data.metrics.avg_duration.toFixed(1)}h`;
+        document.getElementById('peak-hour').textContent = data.metrics.peak_hour;
+        document.getElementById('utilization').textContent = `${data.metrics.utilization.toFixed(1)}%`;
+
+        // Update vehicle distribution chart
+        if (vehicleDistributionChart) {
+            vehicleDistributionChart.destroy();
+        }
+        const vehicleCtx = document.getElementById('vehicleDistribution').getContext('2d');
+        vehicleDistributionChart = new Chart(vehicleCtx, {
+            type: 'pie',
+            data: {
+                labels: data.vehicle_distribution.labels,
+                datasets: [{
+                    data: data.vehicle_distribution.data,
+                    backgroundColor: [
+                        'rgba(255, 99, 132, 0.8)',
+                        'rgba(54, 162, 235, 0.8)',
+                        'rgba(255, 206, 86, 0.8)'
+                    ]
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    }
+                }
+            }
+        });
+
+        // Update check-ins trend chart
+        if (checkInsTrendChart) {
+            checkInsTrendChart.destroy();
+        }
+        const trendCtx = document.getElementById('checkInsTrend').getContext('2d');
+        checkInsTrendChart = new Chart(trendCtx, {
+            type: 'line',
+            data: {
+                labels: data.checkins_trend.labels,
+                datasets: [{
+                    label: 'Daily Check-ins',
+                    data: data.checkins_trend.data,
+                    borderColor: 'rgb(75, 192, 192)',
+                    tension: 0.1
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+
+        // Update vehicle table
+        const tableBody = document.getElementById('vehicleTableBody');
+        tableBody.innerHTML = data.vehicles.map(vehicle => `
+            <tr>
+                <td>
+                    <strong>${vehicle.recorded_by.username}</strong><br>
+                    <small class="text-muted">${vehicle.recorded_by.email}</small>
+                </td>
+                <td>
+                    <i class="fas fa-${vehicle.vehicle_type === 'motorcycle' ? 'motorcycle' : vehicle.vehicle_type === 'bajaj' ? 'taxi' : 'car'} me-2"></i>
+                    <span class="text-capitalize">${vehicle.vehicle_type}</span><br>
+                    <strong class="plate-number">${vehicle.plate_number}</strong><br>
+                    Model: ${vehicle.vehicle_model}<br>
+                    Color: ${vehicle.vehicle_color}
+                </td>
+                <td>
+                    ${vehicle.driver_name}<br>
+                    <small class="text-muted">
+                        ${vehicle.driver_id_type.replace('_', ' ').title()}: ${vehicle.driver_id_number}<br>
+                        Phone: ${vehicle.driver_phone}<br>
+                        Address: ${vehicle.driver_residence}
+                    </small>
+                </td>
+                <td>${vehicle.check_in_time}</td>
+                <td>${vehicle.check_out_time}</td>
+                <td>${vehicle.duration} hours${vehicle.status === 'active' ? ' (ongoing)' : ''}</td>
+                <td>
+                    <span class="badge ${vehicle.status === 'active' ? 'bg-info' : 'bg-success'}">
+                        ${vehicle.status.charAt(0).toUpperCase() + vehicle.status.slice(1)}
+                    </span>
+                </td>
+            </tr>
+        `).join('');
+
+    } catch (error) {
+        console.error('Error updating reports:', error);
+        alert('Error updating reports: ' + error.message);
+    }
+}
+
+// Function to export report
+function exportReport() {
+    const form = document.getElementById('reportFilters');
+    const formData = new FormData(form);
+    const queryString = new URLSearchParams(formData).toString();
+    window.location.href = `/admin/reports/export?${queryString}`;
+}
+
+// Set up event listeners for filter changes
 document.addEventListener('DOMContentLoaded', function() {
+    const filterInputs = document.querySelectorAll('#reportFilters select, #reportFilters input');
+    filterInputs.forEach(input => {
+        input.addEventListener('change', updateReports);
+    });
+
     // Handle date range selection
     const dateRange = document.getElementById('date_range');
     const customDateFields = document.querySelectorAll('.custom-date');
-    
+
     dateRange.addEventListener('change', function() {
         if (this.value === 'custom') {
             customDateFields.forEach(field => field.classList.remove('d-none'));
@@ -217,53 +306,8 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // Vehicle Distribution Chart
-    const vehicleCtx = document.getElementById('vehicleDistribution').getContext('2d');
-    new Chart(vehicleCtx, {
-        type: 'pie',
-        data: {
-            labels: {{ vehicle_distribution.labels|tojson }},
-            datasets: [{
-                data: {{ vehicle_distribution.data|tojson }},
-                backgroundColor: [
-                    'rgba(255, 99, 132, 0.8)',
-                    'rgba(54, 162, 235, 0.8)',
-                    'rgba(255, 206, 86, 0.8)'
-                ]
-            }]
-        },
-        options: {
-            responsive: true,
-            plugins: {
-                legend: {
-                    position: 'bottom'
-                }
-            }
-        }
-    });
-
-    // Check-ins Trend Chart
-    const trendCtx = document.getElementById('checkInsTrend').getContext('2d');
-    new Chart(trendCtx, {
-        type: 'line',
-        data: {
-            labels: {{ checkins_trend.labels|tojson }},
-            datasets: [{
-                label: 'Daily Check-ins',
-                data: {{ checkins_trend.data|tojson }},
-                borderColor: 'rgb(75, 192, 192)',
-                tension: 0.1
-            }]
-        },
-        options: {
-            responsive: true,
-            scales: {
-                y: {
-                    beginAtZero: true
-                }
-            }
-        }
-    });
+    // Initial load
+    updateReports();
 });
 </script>
 {% endblock %}
