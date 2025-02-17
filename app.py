@@ -591,6 +591,7 @@ def admin_reports_api():
         date_range = request.args.get('date_range', 'today')
         vehicle_type = request.args.get('vehicle_type', 'all')
         status = request.args.get('status', 'all')
+        handover_status = request.args.get('handover_status', 'all')
         start_date = request.args.get('start_date')
         end_date = request.args.get('end_date')
 
@@ -627,19 +628,26 @@ def admin_reports_api():
             filters.append(Vehicle.vehicle_type == vehicle_type)
         if status != 'all':
             filters.append(Vehicle.status == status)
+        if handover_status != 'all':
+            if handover_status == 'handed_over':
+                filters.append(Vehicle.handler_id.isnot(None))
+            elif handover_status == 'not_handed_over':
+                filters.append(Vehicle.handler_id.is_(None))
 
-        # Query vehicles with filters
+        # Create aliases for User joins
+        RecordedByUser = aliased(User, name='recorded_by')
+        HandlerUser = aliased(User, name='handler')
+
+        # Query vehicles with proper aliasing
         vehicles = (Vehicle.query
-                   .join(User)
-                   .options(db.joinedload(Vehicle.recorded_by))
+                   .join(RecordedByUser, Vehicle.user_id == RecordedByUser.id)
+                   .outerjoin(HandlerUser, Vehicle.handler_id == HandlerUser.id)
                    .filter(and_(*filters))
                    .order_by(Vehicle.check_in_time.desc())
                    .all())
 
         # Calculate metrics
         metrics = calculate_metrics(vehicles, start_date, end_date)
-        vehicle_distribution = calculate_vehicle_distribution(vehicles)
-        checkins_trend = calculate_checkins_trend(start_date, end_date)
 
         # Format vehicle data
         vehicle_data = []
@@ -654,20 +662,54 @@ def admin_reports_api():
                     'username': vehicle.recorded_by.username,
                     'email': vehicle.recorded_by.email
                 },
-                'vehicle_type': vehicle.vehicle_type,
-                'plate_number': vehicle.plate_number,
-                'vehicle_model': vehicle.vehicle_model,
-                'vehicle_color': vehicle.vehicle_color,
-                'driver_name': vehicle.driver_name,
-                'driver_id_type': vehicle.driver_id_type,
-                'driver_id_number': vehicle.driver_id_number,
-                'driver_phone': vehicle.driver_phone,
-                'driver_residence': vehicle.driver_residence,
-                'check_in_time': vehicle.formatted_check_in_time(),
-                'check_out_time': vehicle.formatted_check_out_time() or '-',
-                'duration': f"{duration:.1f}",
-                'status': vehicle.status
+                'vehicle_info': {
+                    'type': vehicle.vehicle_type,
+                    'plate_number': vehicle.plate_number,
+                    'model': vehicle.vehicle_model,
+                    'color': vehicle.vehicle_color
+                },
+                'driver_info': {
+                    'name': vehicle.driver_name,
+                    'id_type': vehicle.driver_id_type,
+                    'id_number': vehicle.driver_id_number,
+                    'phone': vehicle.driver_phone,
+                    'residence': vehicle.driver_residence
+                },
+                'timing': {
+                    'check_in': vehicle.formatted_check_in_time(),
+                    'check_out': vehicle.formatted_check_out_time() or '-',
+                    'duration': f"{duration:.1f}"
+                },
+                'status': vehicle.status,
+                'handover': {
+                    'handler': vehicle.handler.username if vehicle.handler else None,
+                    'time': vehicle.formatted_handover_time() if vehicle.handover_time else None,
+                    'notes': vehicle.handover_notes
+                } if vehicle.handler else None
             })
+
+        # Calculate vehicle distribution
+        distribution = defaultdict(int)
+        for vehicle in vehicles:
+            distribution[vehicle.vehicle_type.title()] += 1
+
+        vehicle_distribution = {
+            'labels': list(distribution.keys()),
+            'data': list(distribution.values())
+        }
+
+        # Calculate check-ins trend
+        checkins_by_date = defaultdict(int)
+        date_range = [(start_date + timedelta(days=x)).strftime('%Y-%m-%d') 
+                     for x in range((end_date - start_date).days)]
+
+        for vehicle in vehicles:
+            checkins_by_date[vehicle.check_in_time.strftime('%Y-%m-%d')] += 1
+
+        checkins_trend = {
+            'labels': date_range,
+            'data': [checkins_by_date.get(date, 0) for date in date_range]
+        }
 
         return jsonify({
             'vehicles': vehicle_data,
@@ -678,7 +720,7 @@ def admin_reports_api():
 
     except Exception as e:
         logger.error(f"Error generating API report: {str(e)}")
-        return jsonify({'error': 'Error generating report'}), 500
+        return jsonify({'error': str(e)}), 500
 
 # Protected routes for regular users
 @app.route('/check-in', methods=['POST'])
@@ -809,6 +851,8 @@ def calculate_metrics(vehicles, start_date, end_date):
     """Calculate various metrics for the report"""
     try:
         total_vehicles = len(vehicles)
+        total_handovers = sum(1 for v in vehicles if v.handler_id is not None)
+        active_handovers = sum(1 for v in vehicles if v.handler_id is not None and v.status == 'active')
 
         # Calculate average duration
         durations = []
@@ -821,32 +865,26 @@ def calculate_metrics(vehicles, start_date, end_date):
 
         avg_duration = sum(durations) / len(durations) if durations else 0
 
-        # Find peak hour
-        hour_counts = defaultdict(int)
-        for vehicle in vehicles:
-            hour = vehicle.check_in_time.replace(minute=0, second=0, microsecond=0)
-            hour_counts[hour] += 1
-
-        peak_hour = max(hour_counts.items(), key=lambda x: x[1])[0] if hour_counts else None
-        peak_hour_str = peak_hour.strftime('%H:00') if peak_hour else 'N/A'
-
         # Calculate space utilization
         total_spaces = sum(space.total_spaces for space in ParkingSpace.query.all())
-        avg_occupied = db.session.query(func.avg(ParkingSpace.occupied_spaces)).scalar() or 0
-        utilization = (avg_occupied / total_spaces * 100) if total_spaces > 0 else 0
+        current_occupied = sum(space.occupied_spaces for space in ParkingSpace.query.all())
+        utilization = (current_occupied / total_spaces * 100) if total_spaces > 0 else 0
 
         return {
             'total_vehicles': total_vehicles,
-            'avg_duration': avg_duration,
-            'peak_hour': peak_hour_str,
-            'utilization': utilization
+            'total_handovers': total_handovers,
+            'active_handovers': active_handovers,
+            'avg_duration': round(avg_duration, 1),
+            'utilization': round(utilization, 1)
         }
+
     except Exception as e:
         logger.error(f"Error calculating metrics: {str(e)}")
         return {
             'total_vehicles': 0,
+            'total_handovers': 0,
+            'active_handovers': 0,
             'avg_duration': 0,
-            'peak_hour': 'N/A',
             'utilization': 0
         }
 
