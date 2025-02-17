@@ -70,9 +70,14 @@ def initialize_default_data():
             admin = User(
                 username='admin',
                 email='admin@chinopark.com',
+                phone_number='N/A',  # Default value for required field
+                residence='N/A',     # Default value for required field
+                guarantor_name='N/A', # Default value for required field
+                guarantor_phone='N/A', # Default value for required field
+                guarantor_residence='N/A', # Default value for required field
                 is_admin=True,
                 is_approved=True,
-                is_active=True #added is_active field
+                is_active=True
             )
             admin.set_password('admin123')
             db.session.add(admin)
@@ -141,6 +146,12 @@ def register():
         email = request.form.get('email')
         password = request.form.get('password')
         confirm_password = request.form.get('confirm_password')
+        # New fields
+        phone_number = request.form.get('phone_number')
+        residence = request.form.get('residence')
+        guarantor_name = request.form.get('guarantor_name')
+        guarantor_phone = request.form.get('guarantor_phone')
+        guarantor_residence = request.form.get('guarantor_residence')
 
         if password != confirm_password:
             flash('Passwords do not match.', 'error')
@@ -154,12 +165,22 @@ def register():
             flash('Email already registered.', 'error')
             return redirect(url_for('register'))
 
+        # Validate required fields
+        if not all([phone_number, residence, guarantor_name, guarantor_phone, guarantor_residence]):
+            flash('All fields are required.', 'error')
+            return redirect(url_for('register'))
+
         user = User(
             username=username,
             email=email,
-            is_admin=False,  # Regular users are not admins by default
-            is_approved=False,  # Users need admin approval by default
-            is_active=True #added is_active field
+            phone_number=phone_number,
+            residence=residence,
+            guarantor_name=guarantor_name,
+            guarantor_phone=guarantor_phone,
+            guarantor_residence=guarantor_residence,
+            is_admin=False,
+            is_approved=False,
+            is_active=True
         )
         user.set_password(password)
         db.session.add(user)
@@ -762,7 +783,7 @@ def check_in():
             return redirect(url_for('dashboard'))
 
         # Check if vehicle already exists and is active
-        existing_vehicle = Vehicle.query.filter_by(
+        existingvehicle = Vehicle.query.filter_by(
             plate_number=plate_number, 
             status='active'
         ).first()

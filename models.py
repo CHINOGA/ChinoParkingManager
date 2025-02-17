@@ -11,6 +11,14 @@ class User(UserMixin, db.Model):
     username = db.Column(db.String(64), unique=True, nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
     password_hash = db.Column(db.String(256), nullable=False)
+    # New user fields
+    phone_number = db.Column(db.String(20), nullable=False)
+    residence = db.Column(db.String(200), nullable=False)
+    # Guarantor information
+    guarantor_name = db.Column(db.String(100), nullable=False)
+    guarantor_phone = db.Column(db.String(20), nullable=False)
+    guarantor_residence = db.Column(db.String(200), nullable=False)
+    # Existing fields
     is_admin = db.Column(db.Boolean, default=False)
     is_approved = db.Column(db.Boolean, default=False)
     is_active = db.Column(db.Boolean, default=True)
@@ -21,7 +29,6 @@ class User(UserMixin, db.Model):
                            backref='recorded_by', 
                            lazy='dynamic',
                            cascade='all, delete-orphan')
-    # Add relationship for vehicles handed over to this user
     handled_vehicles = db.relationship('Vehicle', 
                                    foreign_keys='Vehicle.handler_id',
                                    backref='handler',

@@ -2,37 +2,66 @@
 
 {% block content %}
 <div class="row justify-content-center">
-    <div class="col-md-6 col-lg-4">
+    <div class="col-md-8 col-lg-6">
         <div class="card">
             <div class="card-header">
                 <h3 class="card-title mb-0">Jisajili (Register)</h3>
             </div>
             <div class="card-body">
                 <form method="POST" action="{{ url_for('register') }}">
+                    <h4 class="mb-3">Personal Information (Taarifa Binafsi)</h4>
                     <div class="mb-3">
-                        <label for="username" class="form-label">Username</label>
+                        <label for="username" class="form-label">Username (Jina la Mtumiaji)</label>
                         <input type="text" class="form-control" id="username" name="username" 
-                               placeholder="Andika jina lako la kutumia" required>
+                               placeholder="Enter your username" required>
                     </div>
                     <div class="mb-3">
-                        <label for="email" class="form-label">Email</label>
+                        <label for="email" class="form-label">Email (Barua Pepe)</label>
                         <input type="email" class="form-control" id="email" name="email" 
-                               placeholder="Andika barua pepe" required>
+                               placeholder="Enter your email address" required>
                     </div>
                     <div class="mb-3">
-                        <label for="password" class="form-label">Password</label>
+                        <label for="phone_number" class="form-label">Phone Number (Namba ya Simu)</label>
+                        <input type="tel" class="form-control" id="phone_number" name="phone_number" 
+                               placeholder="e.g. +255 123 456 789" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="residence" class="form-label">Place of Residence (Mahali Unapoishi)</label>
+                        <input type="text" class="form-control" id="residence" name="residence" 
+                               placeholder="Enter your current address" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="password" class="form-label">Password (Neno la Siri)</label>
                         <input type="password" class="form-control" id="password" name="password" 
-                               placeholder="Andika neno la siri" required>
+                               placeholder="Enter your password" required>
                     </div>
                     <div class="mb-3">
-                        <label for="confirm_password" class="form-label">Confirm Password</label>
+                        <label for="confirm_password" class="form-label">Confirm Password (Thibitisha Neno la Siri)</label>
                         <input type="password" class="form-control" id="confirm_password" name="confirm_password" 
-                               placeholder="Rudia neno la siri" required>
+                               placeholder="Confirm your password" required>
                     </div>
-                    <button type="submit" class="btn btn-primary w-100">Jisajili (Register)</button>
+
+                    <h4 class="mb-3 mt-4">Guarantor Information (Taarifa za Mdhamini)</h4>
+                    <div class="mb-3">
+                        <label for="guarantor_name" class="form-label">Guarantor Name (Jina la Mdhamini)</label>
+                        <input type="text" class="form-control" id="guarantor_name" name="guarantor_name" 
+                               placeholder="Enter guarantor's full name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="guarantor_phone" class="form-label">Guarantor Phone (Simu ya Mdhamini)</label>
+                        <input type="tel" class="form-control" id="guarantor_phone" name="guarantor_phone" 
+                               placeholder="e.g. +255 123 456 789" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="guarantor_residence" class="form-label">Guarantor Residence (Makazi ya Mdhamini)</label>
+                        <input type="text" class="form-control" id="guarantor_residence" name="guarantor_residence" 
+                               placeholder="Enter guarantor's current address" required>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary w-100">Register (Jisajili)</button>
                 </form>
                 <div class="text-center mt-3">
-                    <p>Una akaunti tayari? <a href="{{ url_for('login') }}">Ingia hapa</a></p>
+                    <p>Already have an account? <a href="{{ url_for('login') }}">Login here (Ingia hapa)</a></p>
                 </div>
             </div>
         </div>
