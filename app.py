@@ -812,10 +812,13 @@ def check_in():
 def check_out():
     try:
         plate_number = request.form.get('plate_number')
-        vehicle = Vehicle.query.filter_by(
-            plate_number=plate_number, 
-            status='active',
-            user_id=current_user.id
+                # Modified query to check both user_id and handler_id
+        vehicle = Vehicle.query.filter(
+            Vehicle.plate_number == plate_number,
+            Vehicle.status == 'active'
+        ).filter(
+            (Vehicle.user_id == current_user.id) | 
+            (Vehicle.handler_id == current_user.id)
         ).first()
 
         if not vehicle:
@@ -828,6 +831,7 @@ def check_out():
 
         vehicle.status = 'completed'
         vehicle.check_out_time = datetime.utcnow()
+        vehicle.handler_id = None  # Clear handler when checking out
         db.session.commit()
         flash('Vehicle checked out successfully!', 'success')
     except Exception as e:
@@ -993,6 +997,93 @@ def analytics():
         logger.error(f"Error in analytics: {str(e)}")
         flash('Error loading analytics data', 'error')
         return redirect(url_for('dashboard'))
+
+# Add these new routes after the existing vehicle management routes
+@app.route('/handover/<int:vehicle_id>', methods=['GET', 'POST'])
+@login_required
+def handover_vehicle(vehicle_id):
+    vehicle = Vehicle.query.get_or_404(vehicle_id)
+
+    # Check if user has permission to handover this vehicle
+    if vehicle.user_id != current_user.id and vehicle.handler_id != current_user.id:
+        flash('You do not have permission to handover this vehicle.', 'error')
+        return redirect(url_for('dashboard'))
+
+    if vehicle.status != 'active':
+        flash('Only active vehicles can be handed over.', 'error')
+        return redirect(url_for('dashboard'))
+
+    if request.method == 'POST':
+        handler_username = request.form.get('handler_username')
+        handover_notes = request.form.get('handover_notes')
+
+        handler = User.query.filter_by(username=handler_username).first()
+        if not handler:
+            flash('User not found.', 'error')
+            return redirect(url_for('handover_vehicle', vehicle_id=vehicle_id))
+
+        if not handler.is_active or not handler.is_approved:
+            flash('Selected user cannot receive vehicle handovers.', 'error')
+            return redirect(url_for('handover_vehicle', vehicle_id=vehicle_id))
+
+        vehicle.handler_id = handler.id
+        vehicle.handover_time = datetime.utcnow()
+        vehicle.handover_notes = handover_notes
+        db.session.commit()
+
+        flash(f'Vehicle handed over to {handler.username} successfully.', 'success')
+        return redirect(url_for('dashboard'))
+
+    users = User.query.filter(
+        User.is_active == True,
+        User.is_approved == True,
+        User.id != current_user.id
+    ).all()
+
+    return render_template('handover.html', vehicle=vehicle, users=users)
+
+@app.route('/my-handovers')
+@login_required
+def my_handovers():
+    # Get vehicles handed over to current user
+    received_handovers = Vehicle.query.filter(
+        Vehicle.handler_id == current_user.id,
+        Vehicle.status == 'active'
+    ).all()
+
+    # Get vehicles user has handed over to others
+    sent_handovers = Vehicle.query.filter(
+        Vehicle.user_id == current_user.id,
+        Vehicle.handler_id.isnot(None),
+        Vehicle.status == 'active'
+    ).all()
+
+    return render_template('my_handovers.html',
+                       received_handovers=received_handovers,
+                       sent_handovers=sent_handovers)
+
+@app.route('/cancel-handover/<int:vehicle_id>', methods=['POST'])
+@login_required
+def cancel_handover(vehicle_id):
+    vehicle = Vehicle.query.get_or_404(vehicle_id)
+
+    # Only the original recorder can cancel a handover
+    if vehicle.user_id != current_user.id:
+        flash('You do not have permission to cancel this handover.', 'error')
+        return redirect(url_for('my_handovers'))
+
+    if vehicle.status != 'active':
+        flash('Only active handovers can be cancelled.', 'error')
+        return redirect(url_for('my_handovers'))
+
+    vehicle.handler_id = None
+    vehicle.handover_time = None
+    vehicle.handover_notes = None
+    db.session.commit()
+
+    flash('Handover cancelled successfully.', 'success')
+    return redirect(url_for('my_handovers'))
+
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)

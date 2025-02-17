@@ -16,8 +16,16 @@ class User(UserMixin, db.Model):
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     last_login = db.Column(db.DateTime)
-    vehicles = db.relationship('Vehicle', backref='recorded_by', lazy='dynamic',
+    vehicles = db.relationship('Vehicle', 
+                           foreign_keys='Vehicle.user_id',
+                           backref='recorded_by', 
+                           lazy='dynamic',
                            cascade='all, delete-orphan')
+    # Add relationship for vehicles handed over to this user
+    handled_vehicles = db.relationship('Vehicle', 
+                                   foreign_keys='Vehicle.handler_id',
+                                   backref='current_handler',
+                                   lazy='dynamic')
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -54,6 +62,11 @@ class Vehicle(db.Model):
     status = db.Column(db.String(20), default='active')  # active, completed
     user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
 
+    # Handover Information
+    handler_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    handover_time = db.Column(db.DateTime, nullable=True)
+    handover_notes = db.Column(db.Text, nullable=True)
+
     def __repr__(self):
         return f'<Vehicle {self.plate_number}>'
 
@@ -71,6 +84,11 @@ class Vehicle(db.Model):
     def formatted_check_out_time(self):
         """Return check-out time in EAT format"""
         eat_time = self.get_east_african_time(self.check_out_time)
+        return eat_time.strftime('%Y-%m-%d %H:%M') if eat_time else ''
+
+    def formatted_handover_time(self):
+        """Return handover time in EAT format"""
+        eat_time = self.get_east_african_time(self.handover_time)
         return eat_time.strftime('%Y-%m-%d %H:%M') if eat_time else ''
 
 class ParkingSpace(db.Model):

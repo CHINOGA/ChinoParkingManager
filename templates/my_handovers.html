@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <h1 class="text-center mb-4">My Vehicle Handovers</h1>
+    </div>
+</div>
+
+<!-- Received Handovers -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title mb-0">Vehicles Handed Over to Me</h3>
+            </div>
+            <div class="card-body">
+                {% if received_handovers %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Vehicle Information</th>
+                                <th>Original Recorder</th>
+                                <th>Handover Time</th>
+                                <th>Notes</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for vehicle in received_handovers %}
+                            <tr>
+                                <td>
+                                    <i class="fas fa-{% if vehicle.vehicle_type == 'motorcycle' %}motorcycle{% elif vehicle.vehicle_type == 'bajaj' %}taxi{% else %}car{% endif %} me-2"></i>
+                                    <span class="text-capitalize">{{ vehicle.vehicle_type }}</span><br>
+                                    <strong class="plate-number">{{ vehicle.plate_number }}</strong><br>
+                                    Model: {{ vehicle.vehicle_model }}<br>
+                                    Color: {{ vehicle.vehicle_color }}
+                                </td>
+                                <td>
+                                    {{ vehicle.recorded_by.username }}<br>
+                                    <small class="text-muted">{{ vehicle.recorded_by.email }}</small>
+                                </td>
+                                <td>{{ vehicle.formatted_handover_time() }}</td>
+                                <td>
+                                    <small class="text-muted">{{ vehicle.handover_notes or 'No notes provided' }}</small>
+                                </td>
+                                <td>
+                                    <form method="POST" action="{{ url_for('check_out') }}">
+                                        <input type="hidden" name="plate_number" value="{{ vehicle.plate_number }}">
+                                        <button type="submit" class="btn btn-danger btn-sm">Check Out</button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-center my-4">No vehicles have been handed over to you.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Sent Handovers -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title mb-0">Vehicles I've Handed Over</h3>
+            </div>
+            <div class="card-body">
+                {% if sent_handovers %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Vehicle Information</th>
+                                <th>Handed Over To</th>
+                                <th>Handover Time</th>
+                                <th>Notes</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for vehicle in sent_handovers %}
+                            <tr>
+                                <td>
+                                    <i class="fas fa-{% if vehicle.vehicle_type == 'motorcycle' %}motorcycle{% elif vehicle.vehicle_type == 'bajaj' %}taxi{% else %}car{% endif %} me-2"></i>
+                                    <span class="text-capitalize">{{ vehicle.vehicle_type }}</span><br>
+                                    <strong class="plate-number">{{ vehicle.plate_number }}</strong><br>
+                                    Model: {{ vehicle.vehicle_model }}<br>
+                                    Color: {{ vehicle.vehicle_color }}
+                                </td>
+                                <td>
+                                    {{ vehicle.current_handler.username }}<br>
+                                    <small class="text-muted">{{ vehicle.current_handler.email }}</small>
+                                </td>
+                                <td>{{ vehicle.formatted_handover_time() }}</td>
+                                <td>
+                                    <small class="text-muted">{{ vehicle.handover_notes or 'No notes provided' }}</small>
+                                </td>
+                                <td>
+                                    <form method="POST" action="{{ url_for('cancel_handover', vehicle_id=vehicle.id) }}">
+                                        <button type="submit" class="btn btn-warning btn-sm">Cancel Handover</button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-center my-4">You haven't handed over any vehicles.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

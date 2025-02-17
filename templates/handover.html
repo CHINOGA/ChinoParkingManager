@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title mb-0">Handover Vehicle</h3>
+            </div>
+            <div class="card-body">
+                <div class="vehicle-details mb-4">
+                    <h4>Vehicle Information</h4>
+                    <dl class="row">
+                        <dt class="col-sm-3">Plate Number</dt>
+                        <dd class="col-sm-9"><span class="plate-number">{{ vehicle.plate_number }}</span></dd>
+                        
+                        <dt class="col-sm-3">Type</dt>
+                        <dd class="col-sm-9">{{ vehicle.vehicle_type|title }}</dd>
+                        
+                        <dt class="col-sm-3">Model</dt>
+                        <dd class="col-sm-9">{{ vehicle.vehicle_model }}</dd>
+                        
+                        <dt class="col-sm-3">Color</dt>
+                        <dd class="col-sm-9">{{ vehicle.vehicle_color }}</dd>
+                        
+                        <dt class="col-sm-3">Check-in Time</dt>
+                        <dd class="col-sm-9">{{ vehicle.formatted_check_in_time() }}</dd>
+                    </dl>
+                </div>
+
+                <form method="POST">
+                    <div class="mb-3">
+                        <label for="handler_username" class="form-label">Select User to Handover</label>
+                        <select class="form-select" id="handler_username" name="handler_username" required>
+                            <option value="">Choose a user...</option>
+                            {% for user in users %}
+                            <option value="{{ user.username }}">{{ user.username }} ({{ user.email }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="handover_notes" class="form-label">Handover Notes</label>
+                        <textarea class="form-control" id="handover_notes" name="handover_notes" rows="3" 
+                                placeholder="Add any important notes about the vehicle or handover..."></textarea>
+                    </div>
+
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary">Complete Handover</button>
+                        <a href="{{ url_for('dashboard') }}" class="btn btn-secondary">Cancel</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -4,6 +4,13 @@
 <div class="row mb-4">
     <div class="col-12">
         <h1 class="text-center mb-4">Parking Report</h1>
+        {% if current_user.is_authenticated and not current_user.is_admin %}
+        <div class="text-end mb-3">
+            <a href="{{ url_for('my_handovers') }}" class="btn btn-info">
+                <i class="fas fa-exchange-alt me-2"></i>My Handovers
+            </a>
+        </div>
+        {% endif %}
     </div>
 </div>
 
@@ -28,6 +35,9 @@
                                 <th>Check-out Time (EAT)</th>
                                 <th>Duration</th>
                                 <th>Status</th>
+                                {% if not is_admin %}
+                                <th>Actions</th>
+                                {% endif %}
                             </tr>
                         </thead>
                         <tbody>
@@ -70,6 +80,18 @@
                                         {{ vehicle.status|title }}
                                     </span>
                                 </td>
+                                {% if not is_admin %}
+                                <td>
+                                    {% if vehicle.status == 'active' %}
+                                        {% if vehicle.user_id == current_user.id %}
+                                            <a href="{{ url_for('handover_vehicle', vehicle_id=vehicle.id) }}" 
+                                               class="btn btn-info btn-sm">
+                                                <i class="fas fa-exchange-alt me-1"></i>Handover
+                                            </a>
+                                        {% endif %}
+                                    {% endif %}
+                                </td>
+                                {% endif %}
                             </tr>
                             {% endfor %}
                         </tbody>
