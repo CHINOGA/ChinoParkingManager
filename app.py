@@ -452,25 +452,35 @@ def check_out():
 @app.route('/report')
 @login_required
 def report():
-    # Get vehicles based on user role
-    if current_user.is_admin:
-        # Admin sees all vehicles with user information
-        vehicles = Vehicle.query.join(User).order_by(
-            Vehicle.check_in_time.desc()
-        ).all()
-    else:
-        # Regular users only see their vehicles
-        vehicles = Vehicle.query.filter_by(user_id=current_user.id).order_by(
-            Vehicle.check_in_time.desc()
-        ).all()
+    try:
+        # Get vehicles based on user role
+        if current_user.is_admin:
+            # Admin sees all vehicles with user information
+            vehicles = (Vehicle.query
+                       .join(User)  # Explicitly join with User
+                       .options(db.joinedload(Vehicle.recorded_by))  # Eager load the user relationship
+                       .order_by(Vehicle.check_in_time.desc())
+                       .all())
+            logger.info(f"Admin report: Found {len(vehicles)} vehicles")
+        else:
+            # Regular users only see their vehicles
+            vehicles = (Vehicle.query
+                       .filter_by(user_id=current_user.id)
+                       .order_by(Vehicle.check_in_time.desc())
+                       .all())
+            logger.info(f"User report: Found {len(vehicles)} vehicles for user {current_user.username}")
 
-    # Pass current time for duration calculations of active parkings
-    now = datetime.utcnow()
+        # Pass current time for duration calculations of active parkings
+        now = datetime.utcnow()
 
-    return render_template('report.html', 
-                         vehicles=vehicles,
-                         now=now,
-                         is_admin=current_user.is_admin)
+        return render_template('report.html',
+                           vehicles=vehicles,
+                           now=now,
+                           is_admin=current_user.is_admin)
+    except Exception as e:
+        logger.error(f"Error generating report: {str(e)}")
+        flash('Error loading report data', 'error')
+        return redirect(url_for('dashboard'))
 
 @app.route('/analytics')
 @login_required
