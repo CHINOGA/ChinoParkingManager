@@ -342,7 +342,7 @@ def admin_spaces():
 def update_spaces():
     if not current_user.is_admin:
         flash('Access denied. Admin privileges required.', 'error')
-        return redirect(url_for('dashboard'))
+        return redirect(url_for('admin_spaces'))
 
     try:
         space_id = request.form.get('space_id')

@@ -35,8 +35,8 @@
                             <tr>
                                 {% if is_admin %}
                                 <td>
-                                    <strong>{{ vehicle.user.username }}</strong><br>
-                                    <small class="text-muted">{{ vehicle.user.email }}</small>
+                                    <strong>{{ vehicle.recorded_by.username }}</strong><br>
+                                    <small class="text-muted">{{ vehicle.recorded_by.email }}</small>
                                 </td>
                                 {% endif %}
                                 <td>
