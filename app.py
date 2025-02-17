@@ -421,10 +421,10 @@ def admin_reports():
             elif handover_status == 'not_handed_over':
                 filters.append(Vehicle.handler_id.is_(None))
 
-        # Query vehicles with explicit join conditions
+        # Query vehicles with explicit join conditions and proper aliasing
         vehicles = (Vehicle.query
                    .join(User, Vehicle.user_id == User.id)  # Join for recorded_by
-                   .outerjoin(User, Vehicle.handler_id == User.id)  # Join for handler
+                   .outerjoin(User, and_(Vehicle.handler_id == User.id), from_joinpoint=True)  # Join for handler
                    .options(
                        db.joinedload(Vehicle.recorded_by),
                        db.joinedload(Vehicle.current_handler)
@@ -789,7 +789,7 @@ def report():
         else:
             # Regular users only see their vehicles
             vehicles = (Vehicle.query
-                       .filter_by(user_id=current_user.id)
+                       .filter_by(userid=current_user.id)
                        .order_by(Vehicle.check_in_time.desc())
                        .all())
             logger.info(f"User report: Found {len(vehicles)} vehicles for user {current_user.username}")
