@@ -260,7 +260,7 @@ async function updateReports() {
                 <td>
                     ${vehicle.driver_name}<br>
                     <small class="text-muted">
-                        ${vehicle.driver_id_type.replace('_', ' ').title()}: ${vehicle.driver_id_number}<br>
+                        ${vehicle.driver_id_type ? vehicle.driver_id_type.replace(/_/g, ' ').split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(' ') : ''}: ${vehicle.driver_id_number}<br>
                         Phone: ${vehicle.driver_phone}<br>
                         Address: ${vehicle.driver_residence}
                     </small>
@@ -270,7 +270,7 @@ async function updateReports() {
                 <td>${vehicle.duration} hours${vehicle.status === 'active' ? ' (ongoing)' : ''}</td>
                 <td>
                     <span class="badge ${vehicle.status === 'active' ? 'bg-info' : 'bg-success'}">
-                        ${vehicle.status.charAt(0).toUpperCase() + vehicle.status.slice(1)}
+                        ${vehicle.status ? vehicle.status.charAt(0).toUpperCase() + vehicle.status.slice(1) : ''}
                     </span>
                 </td>
             </tr>
