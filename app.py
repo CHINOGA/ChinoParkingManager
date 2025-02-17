@@ -67,7 +67,8 @@ def initialize_default_data():
                 username='admin',
                 email='admin@chinopark.com',
                 is_admin=True,
-                is_approved=True
+                is_approved=True,
+                is_active=True #added is_active field
             )
             admin.set_password('admin123')
             db.session.add(admin)
@@ -153,7 +154,8 @@ def register():
             username=username,
             email=email,
             is_admin=False,  # Regular users are not admins by default
-            is_approved=False  # Users need admin approval by default
+            is_approved=False,  # Users need admin approval by default
+            is_active=True #added is_active field
         )
         user.set_password(password)
         db.session.add(user)
@@ -205,6 +207,89 @@ def reject_user(user_id):
     db.session.commit()
     flash(f'User {user.username} has been rejected.', 'success')
     return redirect(url_for('manage_users'))
+
+# Add these new routes after the existing user management routes
+@app.route('/admin/users/<int:user_id>/deactivate', methods=['POST'])
+@login_required
+def deactivate_user(user_id):
+    if not current_user.is_admin:
+        flash('Access denied. Admin privileges required.', 'error')
+        return redirect(url_for('dashboard'))
+
+    user = User.query.get_or_404(user_id)
+    if user.is_admin:
+        flash('Cannot deactivate admin users.', 'error')
+    else:
+        user.is_active = False
+        db.session.commit()
+        flash(f'User {user.username} has been deactivated.', 'success')
+    return redirect(url_for('manage_users'))
+
+@app.route('/admin/users/<int:user_id>/activate', methods=['POST'])
+@login_required
+def activate_user(user_id):
+    if not current_user.is_admin:
+        flash('Access denied. Admin privileges required.', 'error')
+        return redirect(url_for('dashboard'))
+
+    user = User.query.get_or_404(user_id)
+    user.is_active = True
+    db.session.commit()
+    flash(f'User {user.username} has been activated.', 'success')
+    return redirect(url_for('manage_users'))
+
+@app.route('/admin/users/<int:user_id>/delete', methods=['POST'])
+@login_required
+def delete_user(user_id):
+    if not current_user.is_admin:
+        flash('Access denied. Admin privileges required.', 'error')
+        return redirect(url_for('dashboard'))
+
+    user = User.query.get_or_404(user_id)
+    if user.is_admin:
+        flash('Cannot delete admin users.', 'error')
+    else:
+        db.session.delete(user)
+        db.session.commit()
+        flash(f'User {user.username} has been deleted.', 'success')
+    return redirect(url_for('manage_users'))
+
+@app.route('/admin/users/<int:user_id>/edit', methods=['GET', 'POST'])
+@login_required
+def edit_user(user_id):
+    if not current_user.is_admin:
+        flash('Access denied. Admin privileges required.', 'error')
+        return redirect(url_for('dashboard'))
+
+    user = User.query.get_or_404(user_id)
+
+    if request.method == 'POST':
+        username = request.form.get('username')
+        email = request.form.get('email')
+        new_password = request.form.get('new_password')
+
+        # Check if username already exists for different user
+        existing_user = User.query.filter_by(username=username).first()
+        if existing_user and existing_user.id != user_id:
+            flash('Username already exists.', 'error')
+            return redirect(url_for('edit_user', user_id=user_id))
+
+        # Check if email already exists for different user
+        existing_user = User.query.filter_by(email=email).first()
+        if existing_user and existing_user.id != user_id:
+            flash('Email already registered.', 'error')
+            return redirect(url_for('edit_user', user_id=user_id))
+
+        user.username = username
+        user.email = email
+        if new_password:
+            user.set_password(new_password)
+
+        db.session.commit()
+        flash('User details updated successfully.', 'success')
+        return redirect(url_for('manage_users'))
+
+    return render_template('admin/edit_user.html', user=user)
 
 @app.route('/logout')
 @login_required
