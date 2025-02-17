@@ -78,23 +78,24 @@
         <div class="card">
             <div class="card-body text-center">
                 <h5 class="card-title">Total Vehicles</h5>
-                <p class="display-4">{{ metrics.total_vehicles }}</p>
+                <p class="display-4" id="total-vehicles">{{ metrics.total_vehicles }}</p>
             </div>
         </div>
     </div>
     <div class="col-md-3">
         <div class="card">
             <div class="card-body text-center">
-                <h5 class="card-title">Active Handovers</h5>
-                <p class="display-4">{{ metrics.active_handovers }}</p>
+                <h5 class="card-title">Average Duration</h5>
+                <p class="display-4" id="avg-duration">{{ metrics.avg_duration }}h</p>
             </div>
         </div>
     </div>
     <div class="col-md-3">
         <div class="card">
             <div class="card-body text-center">
-                <h5 class="card-title">Total Handovers</h5>
-                <p class="display-4">{{ metrics.total_handovers }}</p>
+                <h5 class="card-title">Handovers</h5>
+                <p class="display-4" id="total-handovers">{{ metrics.total_handovers }}</p>
+                <p class="text-muted" id="active-handovers">Active: {{ metrics.active_handovers }}</p>
             </div>
         </div>
     </div>
@@ -102,7 +103,7 @@
         <div class="card">
             <div class="card-body text-center">
                 <h5 class="card-title">Space Utilization</h5>
-                <p class="display-4">{{ "%.1f"|format(metrics.utilization) }}%</p>
+                <p class="display-4" id="utilization">{{ metrics.utilization }}%</p>
             </div>
         </div>
     </div>
@@ -154,7 +155,7 @@
                                 <th>Handover Information</th>
                             </tr>
                         </thead>
-                        <tbody>
+                        <tbody id="vehicleTableBody">
                             {% for vehicle in vehicles %}
                             <tr>
                                 <td>
@@ -193,9 +194,9 @@
                                     </span>
                                 </td>
                                 <td>
-                                    {% if vehicle.current_handler %}
+                                    {% if vehicle.handler %}
                                         <span class="badge bg-warning">Handed Over</span><br>
-                                        To: {{ vehicle.current_handler.username }}<br>
+                                        To: {{ vehicle.handler.username }}<br>
                                         Time: {{ vehicle.formatted_handover_time() }}<br>
                                         {% if vehicle.handover_notes %}
                                         <small class="text-muted">Note: {{ vehicle.handover_notes }}</small>
@@ -236,92 +237,117 @@ async function updateReports() {
         }
 
         // Update metrics
-        document.getElementById('total-vehicles').textContent = data.metrics.total_vehicles || 0;
-        document.getElementById('avg-duration').textContent = `${(data.metrics.avg_duration || 0).toFixed(1)}h`;
-        document.getElementById('peak-hour').textContent = data.metrics.peak_hour || 'N/A';
-        document.getElementById('utilization').textContent = 
-            typeof data.metrics.utilization === 'number' 
-                ? `${data.metrics.utilization.toFixed(1)}%` 
-                : '0.0%';
+        document.getElementById('total-vehicles').textContent = data.metrics.total_vehicles;
+        document.getElementById('avg-duration').textContent = `${data.metrics.avg_duration}h`;
+        document.getElementById('total-handovers').textContent = data.metrics.total_handovers;
+        document.getElementById('active-handovers').textContent = `Active: ${data.metrics.active_handovers}`;
+        document.getElementById('utilization').textContent = `${data.metrics.utilization}%`;
 
-        // Update charts and table
-        updateCharts(data);
-        updateTable(data.vehicles);
+        // Update vehicle distribution chart
+        if (vehicleDistributionChart) {
+            vehicleDistributionChart.destroy();
+        }
+        const vehicleCtx = document.getElementById('vehicleDistribution').getContext('2d');
+        vehicleDistributionChart = new Chart(vehicleCtx, {
+            type: 'pie',
+            data: {
+                labels: data.vehicle_distribution.labels,
+                datasets: [{
+                    data: data.vehicle_distribution.data,
+                    backgroundColor: [
+                        'rgba(255, 99, 132, 0.8)',
+                        'rgba(54, 162, 235, 0.8)',
+                        'rgba(255, 206, 86, 0.8)'
+                    ]
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    }
+                }
+            }
+        });
+
+        // Update check-ins trend chart
+        if (checkInsTrendChart) {
+            checkInsTrendChart.destroy();
+        }
+        const trendCtx = document.getElementById('checkInsTrend').getContext('2d');
+        checkInsTrendChart = new Chart(trendCtx, {
+            type: 'line',
+            data: {
+                labels: data.checkins_trend.labels,
+                datasets: [{
+                    label: 'Daily Check-ins',
+                    data: data.checkins_trend.data,
+                    borderColor: 'rgb(75, 192, 192)',
+                    tension: 0.1
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+
+        // Update vehicle table
+        const tableBody = document.getElementById('vehicleTableBody');
+        tableBody.innerHTML = '';
+
+        data.vehicles.forEach(vehicle => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>
+                    <strong>${vehicle.recorded_by.username}</strong><br>
+                    <small class="text-muted">${vehicle.recorded_by.email}</small>
+                </td>
+                <td>
+                    <i class="fas fa-${vehicle.vehicle_info.type === 'motorcycle' ? 'motorcycle' : vehicle.vehicle_info.type === 'bajaj' ? 'taxi' : 'car'} me-2"></i>
+                    <span class="text-capitalize">${vehicle.vehicle_info.type}</span><br>
+                    <strong class="plate-number">${vehicle.vehicle_info.plate_number}</strong><br>
+                    Model: ${vehicle.vehicle_info.model}<br>
+                    Color: ${vehicle.vehicle_info.color}
+                </td>
+                <td>
+                    ${vehicle.driver_info.name}<br>
+                    <small class="text-muted">
+                        ${vehicle.driver_info.id_type.replace('_', ' ').title()}: ${vehicle.driver_info.id_number}<br>
+                        Phone: ${vehicle.driver_info.phone}<br>
+                        Address: ${vehicle.driver_info.residence}
+                    </small>
+                </td>
+                <td>${vehicle.timing.check_in}</td>
+                <td>${vehicle.timing.check_out}</td>
+                <td>${vehicle.timing.duration} hours</td>
+                <td>
+                    <span class="badge ${vehicle.status === 'active' ? 'bg-info' : 'bg-success'}">
+                        ${vehicle.status.charAt(0).toUpperCase() + vehicle.status.slice(1)}
+                    </span>
+                </td>
+                <td>
+                    ${vehicle.handover ? `
+                        <span class="badge bg-warning">Handed Over</span><br>
+                        To: ${vehicle.handover.handler}<br>
+                        Time: ${vehicle.handover.time}<br>
+                        ${vehicle.handover.notes ? `<small class="text-muted">Note: ${vehicle.handover.notes}</small>` : ''}
+                    ` : '<span class="badge bg-secondary">No Handover</span>'}
+                </td>
+            `;
+            tableBody.appendChild(row);
+        });
 
     } catch (error) {
         console.error('Error updating reports:', error);
         alert('Error updating reports: ' + error.message);
     }
 }
-
-// Function to update the charts
-function updateCharts(data) {
-    // Update vehicle distribution chart
-    if (vehicleDistributionChart) {
-        vehicleDistributionChart.destroy();
-    }
-    const vehicleCtx = document.getElementById('vehicleDistribution').getContext('2d');
-    vehicleDistributionChart = new Chart(vehicleCtx, {
-        type: 'pie',
-        data: {
-            labels: data.vehicle_distribution.labels,
-            datasets: [{
-                data: data.vehicle_distribution.data,
-                backgroundColor: [
-                    'rgba(255, 99, 132, 0.8)',
-                    'rgba(54, 162, 235, 0.8)',
-                    'rgba(255, 206, 86, 0.8)'
-                ]
-            }]
-        },
-        options: {
-            responsive: true,
-            plugins: {
-                legend: {
-                    position: 'bottom'
-                }
-            }
-        }
-    });
-
-    // Update check-ins trend chart
-    if (checkInsTrendChart) {
-        checkInsTrendChart.destroy();
-    }
-    const trendCtx = document.getElementById('checkInsTrend').getContext('2d');
-    checkInsTrendChart = new Chart(trendCtx, {
-        type: 'line',
-        data: {
-            labels: data.checkins_trend.labels,
-            datasets: [{
-                label: 'Daily Check-ins',
-                data: data.checkins_trend.data,
-                borderColor: 'rgb(75, 192, 192)',
-                tension: 0.1
-            }]
-        },
-        options: {
-            responsive: true,
-            scales: {
-                y: {
-                    beginAtZero: true
-                }
-            }
-        }
-    });
-}
-
-
-function updateTable(vehicles) {
-    const tableBody = document.getElementById('vehicleTableBody');
-    tableBody.innerHTML = ''; //clear existing data
-
-    vehicles.forEach(vehicle => {
-        const row = tableBody.insertRow();
-        //rest of the code for creating table row
-    });
-}
-
 
 // Function to export report
 function exportReport() {
@@ -334,8 +360,11 @@ function exportReport() {
 // Set up event listeners
 document.addEventListener('DOMContentLoaded', function() {
     const filterInputs = document.querySelectorAll('#reportFilters select, #reportFilters input');
-    filterInputs.forEach(input => {
-        input.addEventListener('change', updateReports);
+    const form = document.getElementById('reportFilters');
+
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        updateReports();
     });
 
     // Handle date range selection
