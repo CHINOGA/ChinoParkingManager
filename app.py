@@ -4,7 +4,7 @@ import io
 import csv
 from datetime import datetime, timedelta
 from collections import defaultdict
-from flask import Flask, render_template, request, flash, redirect, url_for, send_file, jsonify
+from flask import Flask, render_template, request, flash, redirect, url_for, send_file, jsonify, send_from_directory
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from sqlalchemy import func, desc, and_
 from sqlalchemy.orm import aliased
@@ -15,7 +15,7 @@ logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 # Initialize Flask app
-app = Flask(__name__)
+app = Flask(__name__, static_url_path='/static')
 app.secret_key = os.environ.get("SESSION_SECRET")
 
 # Configure database
@@ -36,6 +36,16 @@ login_manager.login_message = 'Please log in to access the parking system.'
 @login_manager.user_loader
 def load_user(user_id):
     return User.query.get(int(user_id))
+
+# Add a route to serve the manifest file
+@app.route('/manifest.json')
+def manifest():
+    return send_from_directory('static', 'manifest.json')
+
+# Add a route to serve the service worker
+@app.route('/service-worker.js')
+def service_worker():
+    return send_from_directory('static/js', 'service-worker.js')
 
 def create_tables():
     """Create database tables"""
@@ -780,7 +790,7 @@ def admin_dashboard():
                        total_vehicles=total_vehicles,
                        active_vehicles=active_vehicles,
                        spaces=spaces,
-                       today_check_ins=today_check_ins,
+                       today_check_ins=today_ins,
                        today_check_outs=today_check_outs)
 
 # Protected routes for regular users
