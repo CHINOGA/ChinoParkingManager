@@ -2,15 +2,34 @@
 <html lang="en" data-bs-theme="dark">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
     <meta name="description" content="Chino Park - Professional parking management system in Dar es Salaam. Secure parking for cars, motorcycles, and bajaj at Golani Kijiweni, Kimara. 24/7 vehicle security.">
     <meta name="keywords" content="parking management, Dar es Salaam parking, secure parking, Kimara parking, Golani Kijiweni, vehicle parking, car park, motorcycle parking, bajaj parking, parking system Tanzania">
     <meta name="author" content="Chino Park">
     <meta name="robots" content="index, follow">
-    <meta name="theme-color" content="#212529">
+
+    <!-- iOS specific -->
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Chino Park">
+    <meta name="theme-color" content="#212529">
+    <meta name="format-detection" content="telephone=no">
+
+    <!-- iOS Splash Screens -->
+    <!-- iPhone X (1125px x 2436px) -->
+    <link rel="apple-touch-startup-image" 
+          media="(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3)" 
+          href="{{ url_for('static', filename='icons/splash-1125x2436.svg') }}">
+    <!-- iPhone 8, 7, 6s, 6 (750px x 1334px) -->
+    <link rel="apple-touch-startup-image" 
+          media="(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2)" 
+          href="{{ url_for('static', filename='icons/splash-750x1334.svg') }}">
+    <!-- iPhone 8 Plus, 7 Plus, 6s Plus, 6 Plus (1242px x 2208px) -->
+    <link rel="apple-touch-startup-image" 
+          media="(device-width: 414px) and (device-height: 736px) and (-webkit-device-pixel-ratio: 3)" 
+          href="{{ url_for('static', filename='icons/splash-1242x2208.svg') }}">
+
+    <!-- Open Graph -->
     <meta property="og:title" content="Chino Park Parking Management System">
     <meta property="og:description" content="Professional parking management system in Dar es Salaam. Secure parking for cars, motorcycles, and bajaj.">
     <meta property="og:type" content="website">
@@ -18,10 +37,13 @@
 
     <title>{% block title %}Chino Park Parking Management{% endblock %} | Secure Parking in Dar es Salaam</title>
 
-    <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
+    <!-- PWA Icons -->
+    <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}" crossorigin="use-credentials">
     <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='icons/icon-192x192.svg') }}">
     <link rel="apple-touch-icon" href="{{ url_for('static', filename='icons/icon-192x192.svg') }}">
+    <link rel="apple-touch-startup-image" href="{{ url_for('static', filename='icons/icon-512x512.svg') }}">
 
+    <!-- Stylesheets -->
     <link rel="stylesheet" href="https://cdn.replit.com/agent/bootstrap-agent-dark-theme.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
@@ -123,18 +145,18 @@
         </div>
     </footer>
 
+    <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="{{ url_for('static', filename='js/parking.js') }}"></script>
     <script>
-        // Register service worker
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/static/js/service-worker.js')
+                navigator.serviceWorker.register('/service-worker.js', { scope: '/' })
                     .then(registration => {
                         console.log('ServiceWorker registration successful');
                     })
                     .catch(err => {
-                        console.log('ServiceWorker registration failed: ', err);
+                        console.error('ServiceWorker registration failed: ', err);
                     });
             });
         }

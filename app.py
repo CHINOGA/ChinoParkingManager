@@ -297,63 +297,6 @@ def delete_user(user_id):
         flash(f'User {user.username} has been deleted.', 'success')
     return redirect(url_for('manage_users'))
 
-# Edited edit_user route with error handling
-@app.route('/admin/users/<int:user_id>/edit', methods=['GET', 'POST'])
-@login_required
-def edit_user(user_id):
-    if not current_user.is_admin:
-        flash('Access denied. Admin privileges required.', 'error')
-        return redirect(url_for('dashboard'))
-
-    try:
-        user = User.query.get_or_404(user_id)
-
-        if request.method == 'POST':
-            username = request.form.get('username')
-            email = request.form.get('email')
-            new_password = request.form.get('new_password')
-            phone_number = request.form.get('phone_number')
-            residence = request.form.get('residence')
-            guarantor_name = request.form.get('guarantor_name')
-            guarantor_phone = request.form.get('guarantor_phone')
-            guarantor_residence = request.form.get('guarantor_residence')
-
-            # Check if username already exists for different user
-            existing_user = User.query.filter_by(username=username).first()
-            if existing_user and existing_user.id != user_id:
-                flash('Username already exists.', 'error')
-                return redirect(url_for('edit_user', user_id=user_id))
-
-            # Check if email already exists for different user
-            existing_user = User.query.filter_by(email=email).first()
-            if existing_user and existing_user.id != user_id:
-                flash('Email already registered.', 'error')
-                return redirect(url_for('edit_user', user_id=user_id))
-
-            # Update all user fields
-            user.username = username
-            user.email = email
-            user.phone_number = phone_number
-            user.residence = residence
-            user.guarantor_name = guarantor_name
-            user.guarantor_phone = guarantor_phone
-            user.guarantor_residence = guarantor_residence
-
-            if new_password:
-                user.set_password(new_password)
-
-            db.session.commit()
-            flash('User details updated successfully.', 'success')
-            return redirect(url_for('manage_users'))
-
-        return render_template('admin/edit_user.html', user=user)
-
-    except Exception as e:
-        logger.error(f"Error editing user {user_id}: {str(e)}")
-        db.session.rollback()
-        flash('An error occurred while editing the user.', 'error')
-        return redirect(url_for('manage_users'))
-
 # Add these new routes after the existing user management routes
 @app.route('/admin/spaces')
 @login_required
@@ -790,7 +733,7 @@ def admin_dashboard():
                        total_vehicles=total_vehicles,
                        active_vehicles=active_vehicles,
                        spaces=spaces,
-                       today_check_ins=today_ins,
+                       today_check_ins=today_check_ins,
                        today_check_outs=today_check_outs)
 
 # Protected routes for regular users
@@ -857,7 +800,7 @@ def check_in():
 def check_out():
     try:
         plate_number = request.form.get('plate_number')
-                # Modified query to check both user_id and handler_id
+                        # Modified query to check both user_id and handler_id
         vehicle = Vehicle.query.filter(
             Vehicle.plate_number == plate_number,
             Vehicle.status == 'active'
@@ -1211,6 +1154,75 @@ def cancel_handover(vehicle_id):
     flash('Handover cancelled successfully.', 'success')
     return redirect(url_for('my_handovers'))
 
+
+@app.route('/admin/users/<int:user_id>/edit', methods=['GET', 'POST'])
+@login_required
+def edit_user(user_id):
+    if not current_user.is_admin:
+        flash('Access denied. Admin privileges required.', 'error')
+        return redirect(url_for('dashboard'))
+
+    try:
+        user = User.query.get_or_404(user_id)
+
+        if request.method == 'POST':
+            # Get all form fields
+            username = request.form.get('username')
+            email = request.form.get('email')
+            new_password = request.form.get('new_password')
+            phone_number = request.form.get('phone_number')
+            residence = request.form.get('residence')
+            guarantor_name = request.form.get('guarantor_name')
+            guarantor_phone = request.form.get('guarantor_phone')
+            guarantor_residence = request.form.get('guarantor_residence')
+
+            # Validate required fields
+            if not all([username, email, phone_number, residence, 
+                       guarantor_name, guarantor_phone, guarantor_residence]):
+                flash('All fields except password are required.', 'error')
+                return render_template('admin/edit_user.html', user=user)
+
+            # Check if username already exists for different user
+            existing_user = User.query.filter_by(username=username).first()
+            if existing_user and existing_user.id != user_id:
+                flash('Username already exists.', 'error')
+                return render_template('admin/edit_user.html', user=user)
+
+            # Check if email already exists for different user
+            existing_user = User.query.filter_by(email=email).first()
+            if existing_user and existing_user.id != user_id:
+                flash('Email already registered.', 'error')
+                return render_template('admin/edit_user.html', user=user)
+
+            try:
+                # Update all user fields
+                user.username = username
+                user.email = email
+                user.phone_number = phone_number
+                user.residence = residence
+                user.guarantor_name = guarantor_name
+                user.guarantor_phone = guarantor_phone
+                user.guarantor_residence = guarantor_residence
+
+                if new_password:
+                    user.set_password(new_password)
+
+                db.session.commit()
+                flash('User details updated successfully.', 'success')
+                return redirect(url_for('manage_users'))
+
+            except Exception as e:
+                db.session.rollback()
+                logger.error(f"Database error while updating user {user_id}: {str(e)}")
+                flash('Error updating user details.', 'error')
+                return render_template('admin/edit_user.html', user=user)
+
+        return render_template('admin/edit_user.html', user=user)
+
+    except Exception as e:
+        logger.error(f"Error accessing user {user_id}: {str(e)}")
+        flash('Error accessing user details.', 'error')
+        return redirect(url_for('manage_users'))
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
